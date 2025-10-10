@@ -1,0 +1,37 @@
+# Dockerfile for the recommendation data pipeline
+# This container runs the data processing scripts and uploads results to blob storage
+
+FROM python:3.12-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy poetry files
+COPY pyproject.toml poetry.lock poetry.toml ./
+
+# Install poetry
+RUN pip install --no-cache-dir poetry==1.7.1
+
+# Configure poetry to not create virtual environment (we're in a container)
+RUN poetry config virtualenvs.create false
+
+# Install dependencies (exclude dev group)
+RUN poetry install --only main --no-interaction --no-ansi
+
+# Copy application code
+COPY tvbingefriend_recommendation_service/ ./tvbingefriend_recommendation_service/
+COPY scripts/ ./scripts/
+COPY alembic/ ./alembic/
+COPY alembic.ini ./
+
+# Set Python path
+ENV PYTHONPATH=/app
+
+# Default command runs the full pipeline
+CMD ["python", "scripts/run_pipeline.py"]

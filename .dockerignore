@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Data
+data/
+*.npy
+*.npz
+*.pkl
+*.csv
+
+# Notebooks
+notebooks/
+*.ipynb
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local settings
+local.settings.json
+.env
+
+# Azure Functions
+.azure/
+.azurefunctions/
+
+# Misc
+*.log
+.DS_Store

@@ -1,0 +1,17 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+
+    "DATABASE_URL": "mysql+pymysql://user:password@localhost:3306/tvbingefriend_recommendations",
+
+    "SHOW_SERVICE_URL": "http://localhost:7071/api",
+    "SEASON_SERVICE_URL": "http://localhost:7072/api",
+    "EPISODE_SERVICE_URL": "http://localhost:7073/api",
+
+    "AZURE_STORAGE_CONNECTION_STRING": "",
+    "STORAGE_CONTAINER_NAME": "recommendation-data",
+    "USE_BLOB_STORAGE": "false"
+  }
+}

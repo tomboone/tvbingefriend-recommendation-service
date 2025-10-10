@@ -1,0 +1,124 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# Poetry
+# poetry.lock  # Uncomment to ignore lock file (recommended to commit for reproducibility)
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+.idea_modules/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+
+# Azure Functions
+local.settings.json
+local.settings.json.backup
+.azure/
+__blobstorage__/
+__queuestorage__/
+__azurite_db*__.json
+.python_packages/
+azurite-debug.log
+azurite-data
+.funcignore
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Data files (these can be large)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets and credentials
+secrets.json
+credentials.json
+*.pem
+*.key
+
+# Model artifacts and processed features
+models/*.pkl
+models/*.joblib
+*.h5
+*.pt
+*.pth
+*.npy
+*.npz
+data/processed/*.pkl
+data/processed/*.npy
+data/processed/*.npz
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# IDEs and Editors - Simplified
+.idea/          # PyCharm / JetBrains
+.vscode/        # VS Code
+*.code-workspace
+.vs/            # Visual Studio
+*.suo
+*.user
+*.sublime-*     # Sublime Text
+*~              # Vim/Emacs backups
+.spyproject/    # Spyder
