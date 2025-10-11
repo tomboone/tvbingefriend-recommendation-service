@@ -99,10 +99,10 @@ def use_blob_storage() -> bool:
     Returns:
         True if blob storage should be used
     """
-    # If connection string is available, use blob storage
-    if get_azure_storage_connection_string():
-        return True
+    # Check explicit flag first
+    use_blob = _get_config_value('USE_BLOB_STORAGE')
+    if use_blob is not None:
+        return use_blob.lower() == 'true'
 
-    # Check explicit flag
-    use_blob = _get_config_value('USE_BLOB_STORAGE', default='false')
-    return use_blob.lower() == 'true'
+    # If no explicit flag, use blob storage if connection string is available
+    return get_azure_storage_connection_string() is not None
