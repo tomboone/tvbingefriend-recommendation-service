@@ -44,7 +44,7 @@ def _get_config_value(key: str, default: Optional[str] = None) -> Optional[str]:
     return default
 
 
-def get_database_url() -> str:
+def get_database_url() -> str | None:
     """
     Get database URL from environment or config.
 
@@ -57,7 +57,7 @@ def get_database_url() -> str:
     )
 
 
-def get_service_url(service_name: str, default_port: int) -> str:
+def get_service_url(service_name: str, default_port: int) -> str | None:
     """
     Get service URL from config.
 
@@ -82,7 +82,7 @@ def get_azure_storage_connection_string() -> Optional[str]:
     return _get_config_value('AZURE_STORAGE_CONNECTION_STRING')
 
 
-def get_storage_container_name() -> str:
+def get_storage_container_name() -> str | None:
     """
     Get storage container name from config.
 

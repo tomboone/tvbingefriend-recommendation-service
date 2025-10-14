@@ -76,7 +76,7 @@ class ShowDataLoader:
         Returns:
             List of show dictionaries
         """
-        all_shows = []
+        all_shows: List[Dict] = []
         offset = 0
 
         logger.info(f"Fetching all shows (batch size: {batch_size})...")

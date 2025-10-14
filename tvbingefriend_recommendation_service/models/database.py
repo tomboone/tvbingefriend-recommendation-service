@@ -7,6 +7,10 @@ from tvbingefriend_recommendation_service.config import get_database_url
 # Get database URL
 DATABASE_URL = get_database_url()
 
+# Validate database URL is provided
+if DATABASE_URL is None:
+    raise ValueError("DATABASE_URL is not configured. Set the DATABASE_URL environment variable.")
+
 # Create engine
 engine = create_engine(
     DATABASE_URL,

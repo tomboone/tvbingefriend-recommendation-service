@@ -122,3 +122,9 @@ temp/
 *.sublime-*     # Sublime Text
 *~              # Vim/Emacs backups
 .spyproject/    # Spyder
+
+# Terraform
+.terraform/
+terraform.tfvars
+backend.hcl
+tfplan
