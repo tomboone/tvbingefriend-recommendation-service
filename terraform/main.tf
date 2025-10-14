@@ -36,6 +36,11 @@ data "azurerm_mysql_flexible_server" "existing" {
   resource_group_name = data.terraform_remote_state.shared.outputs.mysql_server_resource_group_name
 }
 
+data "azurerm_service_plan" "existing" {
+  name                = data.terraform_remote_state.shared.outputs.app_service_plan_name
+  resource_group_name = data.terraform_remote_state.shared.outputs.app_service_plan_resource_group
+}
+
 resource "azurerm_mysql_flexible_database" "main" {
   name                = local.short_svc_name
   resource_group_name = data.azurerm_mysql_flexible_server.existing.resource_group_name
@@ -70,8 +75,7 @@ module "recommendation_api" {
   source = "./modules/recommendation-api"
 
   # App service plan
-  app_service_plan_name           = data.terraform_remote_state.shared.outputs.app_service_plan_name
-  app_service_plan_resource_group = data.terraform_remote_state.shared.outputs.app_service_plan_resource_group
+  app_service_plan_id = data.azurerm_service_plan.existing.id
 
   # Log analytics workspace
   log_analytics_workspace_name                = data.terraform_remote_state.shared.outputs.log_analytics_workspace_name
@@ -103,7 +107,7 @@ module "recommendation_pipeline" {
   resource_group_name               = data.azurerm_resource_group.existing.name
   location                          = data.azurerm_resource_group.existing.location
   storage_primary_connection_string = data.azurerm_storage_account.existing.primary_connection_string
-  storage_container_name            = data.terraform_remote_state.shared.outputs.storage_containers["recommendation-container"]
+  storage_container_name            = data.terraform_remote_state.shared.outputs.storage_containers["recommendation-data"]
 
   # ACR
   acr_login_server   = data.azurerm_container_registry.existing.login_server
@@ -126,4 +130,23 @@ module "recommendation_pipeline" {
   mysql_pwd     = random_password.db_password.result
   mysql_db      = azurerm_mysql_flexible_database.main.name
   mysql_charset = azurerm_mysql_flexible_database.main.charset
+}
+
+# Logic App Scheduler module (triggers pipeline weekly)
+module "logic_app_scheduler" {
+  source = "./modules/logic-app-scheduler"
+
+  logic_app_name      = "${local.service_name}-scheduler"
+  resource_group_name = data.azurerm_resource_group.existing.name
+  location            = data.azurerm_resource_group.existing.location
+
+  # Container to trigger
+  container_group_id   = module.recommendation_pipeline.container_group_id
+  container_group_name = module.recommendation_pipeline.container_group_name
+
+  # Schedule configuration (can be overridden in terraform.tfvars)
+  schedule_frequency    = var.pipeline_schedule_frequency
+  schedule_interval     = var.pipeline_schedule_interval
+  schedule_time         = var.pipeline_schedule_time
+  schedule_days_of_week = var.pipeline_schedule_days_of_week
 }
