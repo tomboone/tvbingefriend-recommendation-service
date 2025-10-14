@@ -3,6 +3,9 @@
 
 FROM python:3.12-slim
 
+# Build argument for Azure Artifacts authentication
+ARG AZURE_ARTIFACTS_TOKEN
+
 # Set working directory
 WORKDIR /app
 
@@ -20,6 +23,11 @@ RUN pip install --no-cache-dir poetry==1.7.1
 
 # Configure poetry to not create virtual environment (we're in a container)
 RUN poetry config virtualenvs.create false
+
+# Configure Azure Artifacts authentication if token provided
+RUN if [ -n "$AZURE_ARTIFACTS_TOKEN" ]; then \
+        poetry config http-basic.TBC_Feed "" "$AZURE_ARTIFACTS_TOKEN"; \
+    fi
 
 # Install dependencies (exclude dev group)
 RUN poetry install --only main --no-interaction --no-ansi

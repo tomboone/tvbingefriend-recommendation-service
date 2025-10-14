@@ -1,6 +1,6 @@
 """Service for content-based TV show recommendations."""
 import math
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, cast
 from pathlib import Path
 import numpy as np
 import logging
@@ -76,13 +76,13 @@ class ContentBasedRecommendationService:
             logger.info(f"Using local storage: {self.processed_data_dir}")
 
         # Lazy-load similarity matrices
-        self._genre_similarity = None
-        self._text_similarity = None
-        self._metadata_similarity = None
-        self._hybrid_similarity = None
-        self._show_id_to_index = None
-        self._index_to_show_id = None
-        self._temp_dir = None  # For blob downloads
+        self._genre_similarity: Optional[np.ndarray] = None
+        self._text_similarity: Optional[np.ndarray] = None
+        self._metadata_similarity: Optional[np.ndarray] = None
+        self._hybrid_similarity: Optional[np.ndarray] = None
+        self._show_id_to_index: Optional[Dict[int, int]] = None
+        self._index_to_show_id: Optional[Dict[int, int]] = None
+        self._temp_dir: Optional[Path] = None  # For blob downloads
 
         logger.info("Initialized ContentBasedRecommendationService")
         logger.info(f"Weights - Genre: {genre_weight}, Text: {text_weight}, Metadata: {metadata_weight}")
@@ -98,6 +98,9 @@ class ContentBasedRecommendationService:
             logger.info(f"Downloading data from blob storage to {self._temp_dir}...")
 
             # Download all files from blob
+            if self.blob_client is None:
+                raise RuntimeError("Blob client not initialized but use_blob is True")
+
             self.blob_client.download_directory(
                 blob_prefix=self.blob_prefix,
                 local_dir=self._temp_dir
@@ -182,15 +185,31 @@ class ContentBasedRecommendationService:
         self._load_similarity_matrices()
         self._load_show_mappings()
 
+        # Type check for mypy
+        if (
+                self._show_id_to_index is None or self._index_to_show_id is None or
+                self._hybrid_similarity is None or self._genre_similarity is None or
+                self._text_similarity is None or self._metadata_similarity is None
+        ):
+            raise RuntimeError("Similarity matrices not loaded")
+
+        # Cast to non-optional types for mypy (we've already checked they're not None)
+        hybrid_similarity = cast(np.ndarray, self._hybrid_similarity)
+        genre_similarity = cast(np.ndarray, self._genre_similarity)
+        text_similarity = cast(np.ndarray, self._text_similarity)
+        metadata_similarity = cast(np.ndarray, self._metadata_similarity)
+        show_id_to_index = cast(Dict[int, int], self._show_id_to_index)
+        index_to_show_id = cast(Dict[int, int], self._index_to_show_id)
+
         # Get matrix index for this show
-        if show_id not in self._show_id_to_index:
+        if show_id not in show_id_to_index:
             logger.warning(f"Show ID {show_id} not found in similarity matrix")
             return []
 
-        show_idx = self._show_id_to_index[show_id]
+        show_idx = show_id_to_index[show_id]
 
         # Get similarity scores for this show
-        similarity_scores = self._hybrid_similarity[show_idx]
+        similarity_scores = hybrid_similarity[show_idx]
 
         # Get indices sorted by similarity (descending)
         sorted_indices = np.argsort(similarity_scores)[::-1]
@@ -201,7 +220,7 @@ class ContentBasedRecommendationService:
             if idx == show_idx:
                 continue  # Skip self
 
-            similar_show_id = self._index_to_show_id[idx]
+            similar_show_id = index_to_show_id[idx]
             similarity_score = float(similarity_scores[idx])
 
             if similarity_score < min_similarity:
@@ -210,9 +229,9 @@ class ContentBasedRecommendationService:
             recommendations.append({
                 'show_id': similar_show_id,
                 'similarity_score': similarity_score,
-                'genre_score': float(self._genre_similarity[show_idx, idx]),
-                'text_score': float(self._text_similarity[show_idx, idx]),
-                'metadata_score': float(self._metadata_similarity[show_idx, idx])
+                'genre_score': float(genre_similarity[show_idx, idx]),
+                'text_score': float(text_similarity[show_idx, idx]),
+                'metadata_score': float(metadata_similarity[show_idx, idx])
             })
 
             if len(recommendations) >= n:
@@ -271,6 +290,10 @@ class ContentBasedRecommendationService:
         # Load matrices
         self._load_similarity_matrices()
         self._load_show_mappings()
+
+        # Type check for mypy
+        if self._show_id_to_index is None:
+            raise RuntimeError("Show mappings not loaded")
 
         # Compute recommendations for all shows
         all_similarities = {}

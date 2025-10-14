@@ -2,8 +2,8 @@
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Tuple, Optional
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore
+from sklearn.preprocessing import MultiLabelBinarizer  # type: ignore
 from scipy.sparse import csr_matrix
 import logging
 
@@ -12,6 +12,7 @@ from tvbingefriend_recommendation_service.ml.text_processor import clean_html
 logger = logging.getLogger(__name__)
 
 
+# noinspection PyMethodMayBeStatic
 class FeatureExtractor:
     """Extract features from TV show data for content-based recommendations."""
 
@@ -100,7 +101,9 @@ class FeatureExtractor:
 
         logger.info(f" Text features: {text_features.shape}")
         logger.info(f"  Vocabulary size: {len(self.tfidf_vectorizer.get_feature_names_out())}")
-        logger.info(f"  Sparsity: {(1 - text_features.nnz / (text_features.shape[0] * text_features.shape[1])) * 100:.2f}%")
+        logger.info(
+            f"  Sparsity: {(1 - text_features.nnz / (text_features.shape[0] * text_features.shape[1])) * 100:.2f}%"
+        )
 
         return text_features, self.tfidf_vectorizer
 

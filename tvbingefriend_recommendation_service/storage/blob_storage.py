@@ -2,10 +2,11 @@
 import logging
 from pathlib import Path
 from typing import Optional, List
-import tempfile
 import os
 
-from tvbingefriend_azure_storage_service import AzureStorageClient
+from tvbingefriend_azure_storage_service import StorageService  # type: ignore
+
+from tvbingefriend_recommendation_service.config import get_storage_container_name
 
 logger = logging.getLogger(__name__)
 
@@ -19,20 +20,24 @@ class BlobStorageClient:
     def __init__(
         self,
         connection_string: Optional[str] = None,
-        container_name: str = "recommendation-data"
+        container_name: Optional[str] = None
     ):
         """
         Initialize blob storage client.
 
         Args:
             connection_string: Azure Storage connection string (from env if None)
-            container_name: Container name for recommendation data
+            container_name: Container name for recommendation data (from config if None)
         """
+        if container_name is None:
+            container_name = get_storage_container_name()
+
         self.container_name = container_name
-        self.client = AzureStorageClient(
-            connection_string=connection_string,
-            container_name=container_name
-        )
+
+        # Initialize StorageService and get blob container client
+        storage_service = StorageService(connection_string=connection_string)
+        self.container_client = storage_service.get_blob_service_client(container_name)
+
         logger.info(f"Initialized BlobStorageClient for container: {container_name}")
 
     def upload_file(self, local_path: Path, blob_name: str) -> bool:
@@ -48,7 +53,9 @@ class BlobStorageClient:
         """
         try:
             logger.info(f"Uploading {local_path} to {blob_name}...")
-            self.client.upload_file(str(local_path), blob_name)
+            blob_client = self.container_client.get_blob_client(blob_name)
+            with open(local_path, 'rb') as data:
+                blob_client.upload_blob(data, overwrite=True)
             file_size = local_path.stat().st_size / 1024 / 1024
             logger.info(f"✓ Uploaded {blob_name} ({file_size:.2f} MB)")
             return True
@@ -73,7 +80,10 @@ class BlobStorageClient:
             # Ensure parent directory exists
             local_path.parent.mkdir(parents=True, exist_ok=True)
 
-            self.client.download_file(blob_name, str(local_path))
+            blob_client = self.container_client.get_blob_client(blob_name)
+            with open(local_path, 'wb') as download_file:
+                download_file.write(blob_client.download_blob().readall())
+
             file_size = local_path.stat().st_size / 1024 / 1024
             logger.info(f"✓ Downloaded {blob_name} ({file_size:.2f} MB)")
             return True
@@ -92,7 +102,8 @@ class BlobStorageClient:
             True if exists
         """
         try:
-            return self.client.blob_exists(blob_name)
+            blob_client = self.container_client.get_blob_client(blob_name)
+            return blob_client.exists()
         except Exception as e:
             logger.error(f"Error checking if {blob_name} exists: {e}")
             return False
@@ -108,7 +119,8 @@ class BlobStorageClient:
             List of blob names
         """
         try:
-            return self.client.list_blobs(prefix=prefix)
+            blob_list = self.container_client.list_blobs(name_starts_with=prefix if prefix else None)
+            return [blob.name for blob in blob_list]
         except Exception as e:
             logger.error(f"Error listing blobs with prefix {prefix}: {e}")
             return []
@@ -125,7 +137,8 @@ class BlobStorageClient:
         """
         try:
             logger.info(f"Deleting {blob_name}...")
-            self.client.delete_file(blob_name)
+            blob_client = self.container_client.get_blob_client(blob_name)
+            blob_client.delete_blob()
             logger.info(f"✓ Deleted {blob_name}")
             return True
         except Exception as e:
@@ -156,7 +169,7 @@ class BlobStorageClient:
         logger.info(f"Uploading directory {local_dir} to blob prefix {blob_prefix}...")
 
         uploaded_count = 0
-        files_to_upload = []
+        files_to_upload: List[Path] = []
 
         # Collect files to upload
         if file_patterns:
@@ -212,14 +225,14 @@ class BlobStorageClient:
 
 def get_blob_client(
     connection_string: Optional[str] = None,
-    container_name: str = "recommendation-data"
+    container_name: Optional[str] = None
 ) -> BlobStorageClient:
     """
     Factory function to get a blob storage client.
 
     Args:
         connection_string: Azure Storage connection string (from env if None)
-        container_name: Container name
+        container_name: Container name (from config if None)
 
     Returns:
         BlobStorageClient instance

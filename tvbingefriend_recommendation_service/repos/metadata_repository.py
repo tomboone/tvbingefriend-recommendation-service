@@ -37,14 +37,14 @@ class MetadataRepository:
 
         if existing:
             # Update
-            existing.name = show_data['name']
-            existing.genres = show_data.get('genres')
-            existing.summary = show_data.get('summary')
-            existing.rating = show_data.get('rating')
-            existing.type = show_data.get('type')
-            existing.language = show_data.get('language')
-            existing.network = show_data.get('network')
-            existing.synced_at = datetime.now(UTC)
+            existing.name = show_data['name']  # type: ignore[assignment]
+            existing.genres = show_data.get('genres')  # type: ignore[assignment]
+            existing.summary = show_data.get('summary')  # type: ignore[assignment]
+            existing.rating = show_data.get('rating')  # type: ignore[assignment]
+            existing.type = show_data.get('type')  # type: ignore[assignment]
+            existing.language = show_data.get('language')  # type: ignore[assignment]
+            existing.network = show_data.get('network')  # type: ignore[assignment]
+            existing.synced_at = datetime.now(UTC)  # type: ignore[assignment]
             show = existing
         else:
             # Insert

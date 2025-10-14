@@ -4,12 +4,12 @@ import pandas as pd
 from typing import List, Optional
 
 
-def clean_html(text: str) -> str:
+def clean_html(text: str | None) -> str:
     """
     Remove HTML tags from text.
 
     Args:
-        text: Raw text possibly containing HTML
+        text: Raw text possibly containing HTML (can be None)
 
     Returns:
         Cleaned text without HTML tags

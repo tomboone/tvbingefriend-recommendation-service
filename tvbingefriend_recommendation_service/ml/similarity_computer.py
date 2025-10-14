@@ -1,13 +1,13 @@
 """Compute similarity matrices for TV show recommendations."""
 import numpy as np
-from typing import Dict, Tuple
-from sklearn.metrics.pairwise import cosine_similarity
-from scipy.sparse import issparse
+from typing import Dict
+from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
 import logging
 
 logger = logging.getLogger(__name__)
 
 
+# noinspection PyMethodMayBeStatic
 class SimilarityComputer:
     """Compute similarity matrices from feature arrays."""
 
@@ -86,7 +86,9 @@ class SimilarityComputer:
         ])
 
         similarity = cosine_similarity(metadata_features)
-        logger.info(f" Metadata similarity: {similarity.shape}, range [{similarity.min():.3f}, {similarity.max():.3f}]")
+        logger.info(
+            f" Metadata similarity: {similarity.shape}, range [{similarity.min():.3f}, {similarity.max():.3f}]"
+        )
         return similarity
 
     def compute_hybrid_similarity(
@@ -123,7 +125,10 @@ class SimilarityComputer:
             metadata_w * metadata_similarity
         )
 
-        logger.info(f" Hybrid similarity: {hybrid_similarity.shape}, range [{hybrid_similarity.min():.3f}, {hybrid_similarity.max():.3f}]")
+        logger.info(
+            f" Hybrid similarity: {hybrid_similarity.shape}, range [{hybrid_similarity.min():.3f}, "
+            f"{hybrid_similarity.max():.3f}]"
+        )
         return hybrid_similarity
 
     def compute_all_similarities(
