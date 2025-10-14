@@ -62,8 +62,34 @@ variable "mysql_admin_username" {
   description = "Admin username for MySQL server"
   type = string
 }
+
 variable "mysql_admin_password" {
   description = "Admin password for MySQL server"
   type = string
   sensitive = true
+}
+
+# Pipeline scheduling configuration
+variable "pipeline_schedule_frequency" {
+  description = "Schedule frequency (Day, Week, Month)"
+  type        = string
+  default     = "Week"
+}
+
+variable "pipeline_schedule_interval" {
+  description = "Schedule interval (e.g., 1 for weekly)"
+  type        = number
+  default     = 1
+}
+
+variable "pipeline_schedule_time" {
+  description = "Time to run (24-hour format, e.g., '02:00' for 2 AM UTC)"
+  type        = string
+  default     = "02:00"
+}
+
+variable "pipeline_schedule_days_of_week" {
+  description = "Days of week to run (for weekly schedule)"
+  type        = list(string)
+  default     = ["Sunday"]
 }

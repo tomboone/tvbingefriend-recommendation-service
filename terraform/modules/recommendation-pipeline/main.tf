@@ -7,7 +7,7 @@ resource "azurerm_container_group" "pipeline" {
   resource_group_name = var.resource_group_name
   ip_address_type     = "None"
   os_type             = "Linux"
-  restart_policy      = "OnFailure"
+  restart_policy      = "OnFailure"  # Will retry on failure
 
   image_registry_credential {
     server   = var.acr_login_server
@@ -23,13 +23,9 @@ resource "azurerm_container_group" "pipeline" {
 
     # Non-sensitive environment variables
     environment_variables = {
-      SHOW_SERVICE_URL       = var.show_service_url
-      STORAGE_CONTAINER_NAME = var.storage_container_name
-      USE_BLOB_STORAGE       = "true"
-    }
-
-    # Sensitive environment variables
-    secure_environment_variables = {
+      SHOW_SERVICE_URL                = var.show_service_url
+      STORAGE_CONTAINER_NAME          = var.storage_container_name
+      USE_BLOB_STORAGE                = "true"
       AZURE_STORAGE_CONNECTION_STRING = var.storage_primary_connection_string
       DATABASE_URL                    = "mysql+pymysql://${var.mysql_user}:${var.mysql_pwd}@${var.mysql_fqdn}:3306/${var.mysql_db}?charset=${var.mysql_charset}"
     }

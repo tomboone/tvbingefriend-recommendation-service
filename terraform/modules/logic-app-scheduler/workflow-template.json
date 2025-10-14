@@ -1,0 +1,39 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "actions": {
+      "Execute_Pipeline_Command": {
+        "inputs": {
+          "authentication": {
+            "type": "ManagedServiceIdentity"
+          },
+          "body": {
+            "command": "python scripts/run_pipeline.py"
+          },
+          "method": "POST",
+          "uri": "https://management.azure.com${container_group_id}/containers/${container_group_name}/exec?api-version=2021-09-01"
+        },
+        "runAfter": {},
+        "type": "Http"
+      }
+    },
+    "contentVersion": "1.0.0.0",
+    "outputs": {},
+    "parameters": {},
+    "triggers": {
+      "Recurrence": {
+        "recurrence": {
+          "frequency": "${schedule_frequency}",
+          "interval": ${schedule_interval},
+          "schedule": {
+            "hours": ["${schedule_hour}"],
+            "minutes": [${schedule_minute}],
+            "weekDays": ${schedule_days_of_week_json}
+          },
+          "timeZone": "UTC"
+        },
+        "type": "Recurrence"
+      }
+    }
+  }
+}
