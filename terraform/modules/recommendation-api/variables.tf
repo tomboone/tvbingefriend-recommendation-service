@@ -1,10 +1,7 @@
 # Variables for recommendation API module
-variable "app_service_plan_name" {
-  type = string
-}
-
-variable "app_service_plan_resource_group" {
-  type = string
+variable "app_service_plan_id" {
+  description = "ID of the App Service Plan"
+  type        = string
 }
 
 variable "log_analytics_workspace_name" {
