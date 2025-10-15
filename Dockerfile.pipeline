@@ -41,5 +41,8 @@ COPY alembic.ini ./
 # Set Python path
 ENV PYTHONPATH=/app
 
+# Disable Python output buffering for real-time logs
+ENV PYTHONUNBUFFERED=1
+
 # Default command runs the full pipeline
 CMD ["python", "scripts/run_pipeline.py"]

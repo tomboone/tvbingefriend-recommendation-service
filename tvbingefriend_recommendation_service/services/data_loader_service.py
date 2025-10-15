@@ -93,11 +93,10 @@ class ShowDataLoader:
                 break
 
             all_shows.extend(shows)
-            total = result.get('total', len(all_shows))
-            logger.info(f"  Loaded {len(all_shows)}/{total} shows...")
+            logger.info(f"  Loaded {len(all_shows)} shows...")
 
-            # Check if we've gotten all results
-            if len(shows) < batch_size or len(all_shows) >= total:
+            # Check if we've gotten all results (fewer shows than requested means we're at the end)
+            if len(shows) < batch_size:
                 break
 
             offset += batch_size

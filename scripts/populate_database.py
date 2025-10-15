@@ -138,44 +138,70 @@ def compute_and_store_similarities(
     metadata_df = pd.read_csv(input_dir / 'shows_metadata.csv')
     show_ids = metadata_df['id'].tolist()
 
-    # Compute similarities in-memory
-    logger.info("\nComputing similarities...")
+    # Compute similarities one show at a time (memory-efficient for large datasets)
+    logger.info("\nComputing similarities (batch processing for memory efficiency)...")
+    logger.info(f"Processing {len(show_ids)} shows...")
+
     computer = SimilarityComputer(
         genre_weight=genre_weight,
         text_weight=text_weight,
         metadata_weight=metadata_weight
     )
 
-    features = {
-        'genre_features': genre_features,
-        'text_features': text_features,
-        'platform_features': platform_features,
-        'type_features': type_features,
-        'language_features': language_features
-    }
+    # Initialize database connection for incremental writes
+    from tvbingefriend_recommendation_service.repos import SimilarityRepository
+    from tvbingefriend_recommendation_service.models.database import SessionLocal
 
-    similarities = computer.compute_all_similarities(features)
-    hybrid_similarity = similarities['hybrid_similarity']
+    db = SessionLocal()
+    repo = SimilarityRepository(db)
 
-    logger.info(f"✓ Computed hybrid similarity matrix: {hybrid_similarity.shape}")
+    # Clear existing similarities once at the start
+    logger.info("Clearing existing similarities from database...")
+    from tvbingefriend_recommendation_service.models import ShowSimilarity
+    db.query(ShowSimilarity).delete()
+    db.commit()
+    logger.info("✓ Database cleared, starting incremental similarity computation...")
 
-    # Extract top N per show and store in database
-    logger.info("\nExtracting top N recommendations per show...")
     all_similarities = {}
+    total_records_stored = 0
+    batch_size = 5000  # Write to DB every 5000 shows
+    first_batch = True
+
+    from sklearn.metrics.pairwise import cosine_similarity
 
     for idx, show_id in enumerate(show_ids):
-        # Get similarity scores for this show
-        sim_scores = hybrid_similarity[idx]
+        # Compute similarity for this single show against all others
+        # This computes only one row of the similarity matrix at a time
+        show_genre = genre_features[idx:idx+1]  # Shape: (1, n_genre_features)
+        show_text = text_features[idx:idx+1]    # Shape: (1, n_text_features)
+        show_platform = platform_features[idx:idx+1]
+        show_type = type_features[idx:idx+1]
+        show_language = language_features[idx:idx+1]
+
+        # Compute similarities against all shows
+        genre_sim = cosine_similarity(show_genre, genre_features)[0]
+        text_sim = cosine_similarity(show_text, text_features)[0]
+
+        # Metadata similarity (platform, type, language combined)
+        platform_sim = cosine_similarity(show_platform, platform_features)[0]
+        type_sim = cosine_similarity(show_type, type_features)[0]
+        language_sim = cosine_similarity(show_language, language_features)[0]
+        metadata_sim = (platform_sim + type_sim + language_sim) / 3
+
+        # Hybrid similarity
+        hybrid_sim = (genre_weight * genre_sim +
+                     text_weight * text_sim +
+                     metadata_weight * metadata_sim)
 
         # Get top N (excluding self)
-        top_indices = np.argsort(sim_scores)[::-1]
+        top_indices = np.argsort(hybrid_sim)[::-1]
 
         recommendations = []
         for similar_idx in top_indices:
             if similar_idx == idx:
                 continue  # Skip self
 
-            similarity_score = float(sim_scores[similar_idx])
+            similarity_score = float(hybrid_sim[similar_idx])
 
             if similarity_score < min_similarity:
                 break
@@ -186,39 +212,43 @@ def compute_and_store_similarities(
             recommendations.append({
                 'similar_show_id': show_ids[similar_idx],
                 'similarity_score': similarity_score,
-                'genre_score': float(similarities['genre_similarity'][idx, similar_idx]),
-                'text_score': float(similarities['text_similarity'][idx, similar_idx]),
-                'metadata_score': float(similarities['metadata_similarity'][idx, similar_idx])
+                'genre_score': float(genre_sim[similar_idx]),
+                'text_score': float(text_sim[similar_idx]),
+                'metadata_score': float(metadata_sim[similar_idx])
             })
 
         if recommendations:
             all_similarities[show_id] = recommendations
 
-        if (len(all_similarities) % 1000) == 0:
-            logger.info(f"  Processed {len(all_similarities)}/{len(show_ids)} shows...")
+        # Write to database every batch_size shows
+        if ((idx + 1) % batch_size) == 0 or (idx + 1) == len(show_ids):
+            if all_similarities:
+                # Don't clear existing records after first batch (already cleared at start)
+                batch_records = repo.bulk_store_all_similarities(
+                    all_similarities,
+                    clear_existing=False
+                )
+                total_records_stored += batch_records
+                logger.info(f"  Processed {idx + 1}/{len(show_ids)} shows... (stored {total_records_stored} similarity records)")
+                all_similarities = {}  # Clear memory
+            else:
+                logger.info(f"  Processed {idx + 1}/{len(show_ids)} shows...")
+        elif ((idx + 1) % 1000) == 0:
+            logger.info(f"  Processed {idx + 1}/{len(show_ids)} shows...")
 
-    logger.info(f"✓ Extracted recommendations for {len(all_similarities)} shows")
+    logger.info(f"✓ Stored {total_records_stored} total similarity records")
 
-    # Store in database
-    logger.info("\nStoring in database...")
-    from tvbingefriend_recommendation_service.repos import SimilarityRepository
-    from tvbingefriend_recommendation_service.models.database import SessionLocal
-
-    db = SessionLocal()
+    # Get final stats
     try:
-        repo = SimilarityRepository(db)
-        total_records = repo.bulk_store_all_similarities(all_similarities)
-
-        # Get stats
         stats = repo.get_similarity_stats()
-        stats['computed_shows'] = len(all_similarities)
+        stats['total_records'] = total_records_stored
         stats['top_n_per_show'] = top_n_per_show
         stats['min_similarity'] = min_similarity
 
         logger.info("="*70)
         logger.info("SIMILARITY STORAGE COMPLETE")
         logger.info("="*70)
-        logger.info(f"Total records stored: {total_records}")
+        logger.info(f"Total records stored: {total_records_stored}")
         logger.info(f"Unique shows: {stats['unique_shows']}")
         logger.info(f"Avg per show: {stats['avg_similarities_per_show']:.1f}")
 

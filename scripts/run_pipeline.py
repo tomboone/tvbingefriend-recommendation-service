@@ -35,6 +35,34 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def run_migrations() -> bool:
+    """
+    Run Alembic database migrations.
+
+    Returns:
+        True if successful, False otherwise
+    """
+    logger.info("\n" + "▶"*35)
+    logger.info("STEP 0: RUN DATABASE MIGRATIONS")
+    logger.info("▶"*35 + "\n")
+
+    try:
+        cmd = ['alembic', 'upgrade', 'head']
+        logger.info(f"Running: {' '.join(cmd)}")
+        logger.info("="*70)
+
+        result = subprocess.run(cmd, check=True, capture_output=False, cwd=str(project_root))
+        logger.info("="*70)
+        logger.info("✓ Database migrations completed successfully")
+        return True
+    except subprocess.CalledProcessError as e:
+        logger.error(f"✗ Database migrations failed with exit code {e.returncode}")
+        return False
+    except FileNotFoundError:
+        logger.error("✗ Alembic not found. Make sure it's installed.")
+        return False
+
+
 def run_step(script_name: str, args: list = None) -> bool:
     """
     Run a pipeline step script.
@@ -170,6 +198,12 @@ def main():
     logger.info(f"Data directory: {args.data_dir}")
     logger.info("="*70)
     logger.info("")
+
+    # Step 0: Run database migrations (if populate step is included)
+    if 'populate' in steps:
+        if not run_migrations():
+            logger.error("Pipeline failed at migration step")
+            sys.exit(1)
 
     results = {}
 
