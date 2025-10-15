@@ -128,3 +128,5 @@ temp/
 terraform.tfvars
 backend.hcl
 tfplan
+
+.claude
