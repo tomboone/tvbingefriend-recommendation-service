@@ -30,7 +30,7 @@ RUN if [ -n "$AZURE_ARTIFACTS_TOKEN" ]; then \
     fi
 
 # Install dependencies (exclude dev group)
-RUN poetry install --only main --no-interaction --no-ansi
+RUN poetry install --only main --no-root --no-interaction --no-ansi
 
 # Copy application code
 COPY tvbingefriend_recommendation_service/ ./tvbingefriend_recommendation_service/
