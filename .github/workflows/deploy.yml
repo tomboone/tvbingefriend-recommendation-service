@@ -4,6 +4,14 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '**.md'
+      - 'notebooks/**'
+      - 'tests/**'
+      - '.vscode/**'
+      - '.gitignore'
+      - 'LICENSE'
+      - '.pre-commit-config.yaml'
   workflow_dispatch:
 
 permissions:
