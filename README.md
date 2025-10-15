@@ -14,48 +14,18 @@ Content-based TV show recommendation system using hybrid similarity scoring.
 
 ### Data Flow
 
-```
-┌─────────────────────────────────────┐
-│  Azure Logic App                    │
-│  (Recurring Schedule: Weekly)       │
-│                                     │
-│  Triggers container instance        │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌──────────────────────────────────────────────────────────┐
-│  Azure Container Instance                                │
-│                                                          │
-│  1. Fetch shows from API                                 │
-│  2. Compute features (genre, text, metadata)             │
-│  3. Upload features to Blob Storage                      │
-│  4. Run database migrations                              │
-│  5. Populate MySQL Database:                             │
-│     - Sync show metadata                                 │
-│     - Compute similarities (in-memory, per show)         │
-│     - Store top N recommendations incrementally          │
-└────────────────────┬─────────────────┬───────────────────┘
-                     │                 │
-                     │                 │
-        ┌────────────▼──────┐    ┌─────▼───────────────────┐
-        │  Azure Blob       │    │  MySQL Database         │
-        │  Storage          │    │                         │
-        │  - Features only  │    │  show_metadata          │
-        │  - ~213 MB        │    │  show_similarities      │
-        │                   │    │  (top 20 per show)      │
-        └───────────────────┘    └────────┬────────────────┘
-                                          │
-                                          │
-                                     ┌────▼───────────────────┐
-                                     │  Azure Functions (API) │
-                                     │                        │
-                                     │  GET /shows/{id}/      │
-                                     │      recommendations   │
-                                     │                        │
-                                     │  Queries MySQL for     │
-                                     │  pre-computed results  │
-                                     │  (<100ms response)     │
-                                     └────────────────────────┘
+```mermaid
+graph TD
+    A[Azure Logic App<br/>Recurring Schedule: Weekly<br/>Triggers container instance]
+    B[Azure Container Instance<br/>1. Fetch shows from API<br/>2. Compute features<br/>3. Upload features to Blob Storage<br/>4. Run database migrations<br/>5. Populate MySQL Database]
+    C[Azure Blob Storage<br/>Features only<br/>~213 MB]
+    D[MySQL Database<br/>show_metadata<br/>show_similarities<br/>top 20 per show]
+    E[Azure Functions API<br/>GET /shows/{id}/recommendations<br/>Queries MySQL for pre-computed results<br/>&lt;100ms response]
+
+    A --> B
+    B --> C
+    B --> D
+    D --> E
 ```
 
 **Key Design Decision:** Similarities are computed in-memory during database population and stored directly in MySQL. This avoids storing ~205GB of similarity matrices in blob storage while maintaining fast API response times.
