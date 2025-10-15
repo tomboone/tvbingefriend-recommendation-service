@@ -1,0 +1,259 @@
+name: Build and Deploy Recommendation Service
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+  ARM_USE_OIDC: true
+  TF_VAR_tf_shared_resource_group_name: ${{ secrets.TF_SHARED_RESOURCE_GROUP_NAME }}
+  TF_VAR_tf_shared_storage_account_name: ${{ secrets.TF_SHARED_STORAGE_ACCOUNT_NAME }}
+  TF_VAR_tf_shared_container_name: ${{ secrets.TF_SHARED_CONTAINER_NAME }}
+  TF_VAR_tf_shared_key: ${{ secrets.TF_SHARED_KEY }}
+  AZURE_DEVOPS_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
+
+jobs:
+  acr-outputs:
+    name: ACR Outputs
+    runs-on: ubuntu-latest
+    outputs:
+      acr_name: ${{ steps.get_outputs.outputs.acr_name }}
+      acr_username: ${{ steps.get_outputs.outputs.acr_username }}
+      acr_password: ${{ steps.get_outputs.outputs.acr_password }}
+
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.ARM_CLIENT_ID }}
+          tenant-id: ${{ env.ARM_TENANT_ID }}
+          subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Get Terraform outputs from shared state
+        id: get_outputs
+        run: |
+          # Initialize Terraform with remote backend pointing to shared state
+          cat > backend.tf << EOF
+          terraform {
+            backend "azurerm" {
+              resource_group_name  = "${{ env.TF_VAR_tf_shared_resource_group_name }}"
+              storage_account_name = "${{ env.TF_VAR_tf_shared_storage_account_name }}"
+              container_name       = "${{ env.TF_VAR_tf_shared_container_name }}"
+              key                  = "${{ env.TF_VAR_tf_shared_key }}"
+            }
+          }
+          EOF
+
+          # Create minimal main.tf to satisfy Terraform
+          cat > main.tf << EOF
+          # Empty configuration to read remote state
+          EOF
+
+          # Initialize with remote backend
+          terraform init
+
+          # Get outputs from remote state
+          ACR_NAME=$(terraform output -raw acr_name)
+          ACR_USERNAME=$(terraform output -raw acr_admin_username)
+          ACR_PASSWORD=$(terraform output -raw acr_admin_password)
+
+          # Set outputs
+          echo "acr_name=$ACR_NAME" >> "$GITHUB_OUTPUT"
+          echo "acr_username=$ACR_USERNAME" >> "$GITHUB_OUTPUT"
+          echo "acr_password=$ACR_PASSWORD" >> "$GITHUB_OUTPUT"
+
+  docker:
+    name: Docker
+    runs-on: ubuntu-latest
+    needs: acr-outputs
+
+    env:
+      IMAGE_NAME: ${{ secrets.IMAGE_NAME }}
+      ACR_NAME: ${{ needs.acr-outputs.outputs.acr_name }}
+      ACR_USERNAME: ${{ needs.acr-outputs.outputs.acr_username }}
+      ACR_PASSWORD: ${{ needs.acr-outputs.outputs.acr_password }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Log in to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ACR_NAME }}.azurecr.io
+          username: ${{ env.ACR_USERNAME }}
+          password: ${{ env.ACR_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.pipeline
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+            ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          build-args: |
+            AZURE_ARTIFACTS_TOKEN=${{ env.AZURE_DEVOPS_PAT }}
+          cache-from: type=registry,ref=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:buildcache,mode=max
+
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    needs: [acr-outputs, docker]
+
+    outputs:
+      function_app_name: ${{ steps.get_outputs.outputs.function_app_name }}
+      function_app_python_version: ${{ steps.get_outputs.outputs.function_app_python_version }}
+
+    env:
+      TF_WORKING_DIR: ./terraform
+      TF_STATE_RG: ${{ secrets.TF_STATE_RG }}
+      TF_STATE_SA: ${{ secrets.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ secrets.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ secrets.TF_STATE_KEY }}
+      TF_VAR_mysql_admin_username: ${{ secrets.MYSQL_ADMIN_USERNAME }}
+      TF_VAR_mysql_admin_password: ${{ secrets.MYSQL_ADMIN_PASSWORD }}
+      TF_VAR_allowed_origins: ${{ secrets.ALLOWED_ORIGINS }}
+      TF_VAR_show_service_url: ${{ secrets.SHOW_SERVICE_URL }}
+
+    defaults:
+      run:
+        working-directory: ./terraform
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.ARM_CLIENT_ID }}
+          tenant-id: ${{ env.ARM_TENANT_ID }}
+          subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ env.TF_STATE_RG }}" \
+            -backend-config="storage_account_name=${{ env.TF_STATE_SA }}" \
+            -backend-config="container_name=${{ env.TF_STATE_CONTAINER }}" \
+            -backend-config="key=${{ env.TF_STATE_KEY }}"
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -auto-approve
+
+      - name: Get Terraform Outputs
+        id: get_outputs
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          APP_NAME=$(terraform output -raw function_app_name)
+          PYTHON_VERSION=$(terraform output -raw function_app_python_version)
+          
+          echo "function_app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
+          echo "function_app_python_version=$PYTHON_VERSION" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [acr-outputs, docker, terraform]
+
+    env:
+      PYTHON_VERSION: ${{ needs.terraform.outputs.function_app_python_version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Configure Poetry to build locally
+        run: poetry config virtualenvs.in-project true
+
+      - name: Configure private repository authentication
+        run: poetry config http-basic.TBC_Feed pat ${{ env.AZURE_DEVOPS_PAT }}
+
+      - name: Install dependencies
+        run: poetry install --only main --no-interaction --no-ansi
+
+      - name: Create deployment package
+        run: |
+          VENV_PATH=$(poetry env info --path)
+          mkdir -p deployment_package/.python_packages/lib/site-packages
+          cp -r $VENV_PATH/lib/python*/site-packages/* deployment_package/.python_packages/lib/site-packages/
+          cp function_app.py host.json alembic.ini deployment_package/
+          cp -r alembic tvbingefriend_recommendation_service deployment_package/
+
+      - name: Zip artifact for deployment
+        run: |
+          cd deployment_package
+          zip -r ../python-app.zip .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-app
+          path: python-app.zip
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: production
+    needs: [acr-outputs, docker, terraform, build]
+
+    env:
+      FUNCTION_APP_NAME: ${{ needs.terraform.outputs.function_app_name }}
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: python-app
+
+      - name: Unzip deployment artifact
+        run: unzip python-app.zip -d app
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.ARM_CLIENT_ID }}
+          tenant-id: ${{ env.ARM_TENANT_ID }}
+          subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.FUNCTION_APP_NAME }}
+          package: 'app'
