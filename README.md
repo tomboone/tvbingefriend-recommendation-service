@@ -7,15 +7,24 @@ Content-based TV show recommendation system using hybrid similarity scoring.
 ### Components
 
 1. **Azure Functions** - API layer for serving recommendations from MySQL
-2. **Azure Container Instance** - Scheduled data pipeline (weekly) for processing shows and computing similarities
-3. **Azure Blob Storage** - Storage for feature matrices only (~213 MB)
-4. **MySQL Database** - Primary data store for show metadata and pre-computed top-N recommendations
+2. **Azure Container Instance** - Data pipeline container for processing shows and computing similarities
+3. **Azure Logic App** - Scheduler that triggers the container instance weekly
+4. **Azure Blob Storage** - Storage for feature matrices only (~213 MB)
+5. **MySQL Database** - Primary data store for show metadata and pre-computed top-N recommendations
 
 ### Data Flow
 
 ```
+┌─────────────────────────────────────┐
+│  Azure Logic App                    │
+│  (Recurring Schedule: Weekly)       │
+│                                     │
+│  Triggers container instance        │
+└──────────────┬──────────────────────┘
+               │
+               ▼
 ┌──────────────────────────────────────────────────────────┐
-│  Azure Container Instance (Scheduled - Weekly)           │
+│  Azure Container Instance                                │
 │                                                          │
 │  1. Fetch shows from API                                 │
 │  2. Compute features (genre, text, metadata)             │
@@ -112,7 +121,7 @@ poetry run alembic upgrade head
 
 ## Configuration
 
-Create `local.settings.json` for local development:
+Create `local.settings.json` for local development (Azure Functions API):
 
 ```json
 {
@@ -120,19 +129,12 @@ Create `local.settings.json` for local development:
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "python",
-
-    "DATABASE_URL": "mysql+pymysql://user:password@localhost:3306/tvbingefriend_recommendations",
-
-    "SHOW_SERVICE_URL": "http://localhost:7071/api",
-    "SEASON_SERVICE_URL": "http://localhost:7072/api",
-    "EPISODE_SERVICE_URL": "http://localhost:7073/api",
-
-    "AZURE_STORAGE_CONNECTION_STRING": "DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net",
-    "STORAGE_CONTAINER_NAME": "recommendation-data",
-    "USE_BLOB_STORAGE": "false"
+    "DATABASE_URL": "mysql+pymysql://user:password@localhost:3306/tvbingefriend_recommendations"
   }
 }
 ```
+
+**Note:** The API only needs database access. For the data pipeline environment variables, see the "Required for Data Pipeline" section below.
 
 ### Environment Variables
 
@@ -147,62 +149,28 @@ Create `local.settings.json` for local development:
 #### Required for Azure Functions
 
 - `DATABASE_URL` - MySQL connection string
-- `AZURE_STORAGE_CONNECTION_STRING` - Azure Storage connection string (if using blob storage)
-- `USE_BLOB_STORAGE` - Set to `true` to load from blob storage
 
-## Running the Data Pipeline
+**Note:** Azure Functions only reads from the MySQL database. Blob storage variables are not required for the API.
 
-### Local Development (with local files)
+## Local Development
+
+### Running the Data Pipeline Locally
+
+For testing and development, run the pipeline locally with a limited dataset:
 
 ```bash
-# Step 1: Fetch and prepare data
-poetry run python scripts/fetch_and_prepare_data.py --max-shows 100
-
-# Step 2: Compute features
-poetry run python scripts/compute_features.py
-
-# Step 3: Populate database (computes similarities in-memory, stores in DB)
-poetry run python scripts/populate_database.py
-
-# OR run the entire pipeline at once
+# Run the complete pipeline with 100 shows (for testing)
 poetry run python scripts/run_pipeline.py --max-shows 100
 ```
 
-**Note:** The pipeline automatically optimizes storage by computing similarities in-memory and storing only top N recommendations in the database. Full similarity matrices are never saved to disk/blob storage.
+The pipeline automatically:
+1. Fetches shows from the API
+2. Computes features (genre, text, metadata)
+3. Runs database migrations
+4. Computes similarities in-memory (one show at a time)
+5. Stores top N recommendations in the database
 
-### Production (with Azure Blob Storage)
-
-```bash
-# Run full pipeline and upload to blob storage
-poetry run python scripts/run_pipeline.py
-
-# Upload processed data to blob storage
-poetry run python scripts/upload_to_blob.py
-
-# Download processed data from blob storage (for testing)
-poetry run python scripts/download_from_blob.py
-```
-
-### Pipeline Options
-
-The pipeline supports various configuration options:
-
-```bash
-# Fetch only specific number of shows (for testing)
-python scripts/run_pipeline.py --max-shows 1000
-
-# Run specific steps only
-python scripts/run_pipeline.py --steps fetch,features
-
-# Customize similarity weights
-python scripts/run_pipeline.py \
-  --genre-weight 0.5 \
-  --text-weight 0.4 \
-  --metadata-weight 0.1
-
-# Adjust top N recommendations per show
-python scripts/run_pipeline.py --top-n 30 --min-similarity 0.15
-```
+**Note:** The pipeline is optimized for memory efficiency - it computes similarities incrementally and stores only the top 20 recommendations per show in the database. Full similarity matrices are never saved to disk.
 
 ## Running Azure Functions Locally
 
@@ -220,43 +188,30 @@ poetry run func start
 - `GET /recommendations/stats`
 - `GET /recommendations/health`
 
-## Docker
-
-### Build Pipeline Image
-
-```bash
-# Build the data pipeline container
-docker build -f Dockerfile.pipeline -t recommendation-pipeline:latest .
-
-# Run locally (with environment variables)
-docker run --env-file .env recommendation-pipeline:latest
-```
-
 ## Deployment
 
-### Azure Container Instance (Data Pipeline)
+All infrastructure is provisioned and deployed automatically via Terraform and GitHub Actions. See the `.github/workflows/` directory for CI/CD configuration and the `terraform/` directory for infrastructure as code.
 
-The data pipeline should be deployed as an Azure Container Instance, configured to run on a schedule (weekly or monthly) via your Terraform configuration.
+### Data Pipeline
 
-**Key Terraform Resources Needed:**
-- `azurerm_container_group` - The container instance
-- Environment variables from your Terraform outputs (storage connection, database URL, etc.)
-- Restart policy: `OnFailure`
+The data pipeline runs weekly as an Azure Container Instance, triggered on a schedule by an Azure Logic App:
+- **Schedule**: Weekly on Sunday at 9:00 AM UTC (5:00 AM Eastern Time)
+- **Runs after**: Show/season/episode services complete their updates (2-4 AM ET)
+- **Resources**: 2 CPU cores, 4 GB memory (configurable)
+- **Notifications**: Optional email alerts on completion/failure (configured via Terraform variable)
 
-**Container Configuration:**
-- Image: Built from `Dockerfile.pipeline`
-- CPU: 2-4 cores recommended
-- Memory: 4-8 GB recommended (depends on dataset size)
-- Command: `python scripts/run_pipeline.py` (or customize with specific steps)
+The Docker image is built from `Dockerfile.pipeline` and pushed to Azure Container Registry automatically by GitHub Actions on every push to `main`.
 
-### Azure Functions (API)
+### API
 
-Deploy as a standard Azure Functions app using your existing Terraform and GitHub Actions setup.
+The Azure Functions app is deployed automatically via GitHub Actions:
+- **Runtime**: Python 3.12
+- **Plan**: Consumption or Premium
+- **Data Source**: MySQL database (pre-computed recommendations)
 
-**Key Configuration:**
-- Runtime: Python 3.12
-- Plan: Consumption or Premium (for better cold start performance)
-- App Settings: Map environment variables from Terraform outputs
+### Configuration
+
+All deployment configuration is managed through Terraform variables in `terraform/variables.tf`. See `.github/workflows/README.md` for required GitHub secrets and setup instructions.
 
 ## Blob Storage Structure
 
@@ -334,20 +289,15 @@ For ~80,000 shows:
 
 ## Monitoring and Logging
 
-### Pipeline Logs
+### Pipeline Monitoring
 
-When running in Azure Container Instance:
-```bash
-# View logs
-az container logs --resource-group <rg> --name <container-name>
+The data pipeline automatically sends email notifications on completion or failure when `pipeline_notification_email` is configured in Terraform. Logs can be viewed in the Azure Portal under the Container Instance resource.
 
-# Stream live logs
-az container attach --resource-group <rg> --name <container-name>
-```
+For local pipeline runs, logs are printed to stdout.
 
 ### Function Logs
 
-View logs in Azure Portal under Application Insights or use:
+Azure Functions logs are available in Azure Portal under Application Insights. For local development, use:
 ```bash
 func logs
 ```
@@ -355,24 +305,23 @@ func logs
 ## Troubleshooting
 
 ### Issue: Pipeline fails at fetch step
-- Verify `SHOW_SERVICE_URL` is accessible
-- Check API authentication if required
-- Reduce `--max-shows` for testing
+- Verify `show_service_url` Terraform variable points to accessible API
+- Check container logs in Azure Portal for error details
+- For local testing, reduce `--max-shows` to test with smaller dataset
 
-### Issue: Out of memory during similarity computation
-- Increase container memory allocation
-- Process shows in batches (modify scripts)
-- Reduce `--max-text-features`
+### Issue: Out of memory during pipeline execution
+- Increase `pipeline_cpu_cores` or `pipeline_memory_in_gb` Terraform variables
+- Check container logs to identify memory bottleneck
 
-### Issue: Functions can't load from blob storage
-- Verify `AZURE_STORAGE_CONNECTION_STRING` is set
-- Check blob container exists and has data
-- Verify `USE_BLOB_STORAGE=true` is set
+### Issue: Functions return empty recommendations
+- Verify `show_similarities` table is populated (check database directly)
+- Ensure pipeline has completed successfully (check email notification or Azure Portal)
+- Verify database connection string is correct in Function App settings
 
 ### Issue: Slow recommendation API responses
-- Ensure database indexes are created
-- Check if `show_similarities` table is populated
-- Consider increasing Function App tier
+- Ensure database indexes are created (Alembic migrations run automatically)
+- Verify `show_similarities` table has data
+- Consider upgrading to Premium App Service Plan for better performance
 
 ## License
 

@@ -1,5 +1,5 @@
 # Logic App for scheduled container execution
-# This creates a Standard Logic App that runs the recommendation pipeline on a schedule
+# This creates a Logic App that runs the recommendation pipeline on a schedule
 
 locals {
   # Parse schedule time (e.g., "02:00" -> hour=2, minute=0)
@@ -9,17 +9,6 @@ locals {
 
   # Convert days of week list to JSON array string
   schedule_days_of_week_json = jsonencode(var.schedule_days_of_week)
-
-  # Render workflow template
-  workflow_definition = templatefile("${path.module}/workflow-template.json", {
-    container_group_id         = var.container_group_id
-    container_group_name       = var.container_group_name
-    schedule_frequency         = var.schedule_frequency
-    schedule_interval          = var.schedule_interval
-    schedule_hour              = local.schedule_hour
-    schedule_minute            = local.schedule_minute
-    schedule_days_of_week_json = local.schedule_days_of_week_json
-  })
 }
 
 resource "azurerm_logic_app_workflow" "scheduler" {

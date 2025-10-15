@@ -135,6 +135,7 @@ jobs:
       TF_VAR_mysql_admin_password: ${{ secrets.MYSQL_ADMIN_PASSWORD }}
       TF_VAR_allowed_origins: ${{ secrets.ALLOWED_ORIGINS }}
       TF_VAR_show_service_url: ${{ secrets.SHOW_SERVICE_URL }}
+      TF_VAR_pipeline_notification_email: ${{ secrets.PIPELINE_NOTIFICATION_EMAIL }}
 
     defaults:
       run:
