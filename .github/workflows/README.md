@@ -69,6 +69,7 @@ These variables have defaults defined in `terraform/variables.tf` and **do not r
 | `PIPELINE_IMAGE_TAG` | Docker image tag for pipeline container | `latest` | `v1.2.3` |
 | `PIPELINE_CPU_CORES` | CPU cores allocated to pipeline container | `2.0` | `4.0` |
 | `PIPELINE_MEMORY_IN_GB` | Memory (GB) allocated to pipeline container | `4.0` | `8.0` |
+| `PIPELINE_NOTIFICATION_EMAIL` | Email for pipeline completion alerts | `` (disabled) | `admin@example.com` |
 
 To override these defaults, add the corresponding `TF_VAR_*` entries to the `terraform` job's `env` section in `deploy.yml`:
 
@@ -77,7 +78,10 @@ env:
   TF_VAR_pipeline_image_tag: ${{ secrets.PIPELINE_IMAGE_TAG }}
   TF_VAR_pipeline_cpu_cores: ${{ secrets.PIPELINE_CPU_CORES }}
   TF_VAR_pipeline_memory_in_gb: ${{ secrets.PIPELINE_MEMORY_IN_GB }}
+  TF_VAR_pipeline_notification_email: ${{ secrets.PIPELINE_NOTIFICATION_EMAIL }}
 ```
+
+**Note:** Email notifications use Azure Monitor Activity Log Alerts. When enabled, you'll receive emails when the pipeline container completes (success) or fails, with links to view logs in Azure Portal.
 
 ## Setting Up Federated Identity (OIDC)
 
