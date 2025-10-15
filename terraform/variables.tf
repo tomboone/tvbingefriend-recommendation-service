@@ -83,13 +83,19 @@ variable "pipeline_schedule_interval" {
 }
 
 variable "pipeline_schedule_time" {
-  description = "Time to run (24-hour format, e.g., '02:00' for 2 AM UTC)"
+  description = "Time to run (24-hour format, e.g., '09:00' for 9 AM UTC / 5 AM ET)"
   type        = string
-  default     = "02:00"
+  default     = "09:00"
 }
 
 variable "pipeline_schedule_days_of_week" {
   description = "Days of week to run (for weekly schedule)"
   type        = list(string)
   default     = ["Sunday"]
+}
+
+variable "pipeline_notification_email" {
+  description = "Email address to send pipeline completion notifications (leave empty to disable)"
+  type        = string
+  default     = ""
 }

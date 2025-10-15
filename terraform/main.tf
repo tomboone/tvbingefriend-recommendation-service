@@ -150,3 +150,15 @@ module "logic_app_scheduler" {
   schedule_time         = var.pipeline_schedule_time
   schedule_days_of_week = var.pipeline_schedule_days_of_week
 }
+
+# Container Monitoring module (email notifications for pipeline completion)
+module "container_monitoring" {
+  source = "./modules/container-monitoring"
+
+  container_group_name = module.recommendation_pipeline.container_group_name
+  container_group_id   = module.recommendation_pipeline.container_group_id
+  resource_group_name  = data.azurerm_resource_group.existing.name
+
+  # Email notifications (set via terraform.tfvars or TF_VAR_pipeline_notification_email)
+  notification_email = var.pipeline_notification_email
+}
