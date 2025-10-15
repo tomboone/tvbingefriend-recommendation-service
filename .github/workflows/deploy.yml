@@ -22,70 +22,15 @@ env:
   AZURE_DEVOPS_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
 
 jobs:
-  acr-outputs:
-    name: ACR Outputs
-    runs-on: ubuntu-latest
-    outputs:
-      acr_name: ${{ steps.get_outputs.outputs.acr_name }}
-      acr_username: ${{ steps.get_outputs.outputs.acr_username }}
-      acr_password: ${{ steps.get_outputs.outputs.acr_password }}
-
-    steps:
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ env.ARM_CLIENT_ID }}
-          tenant-id: ${{ env.ARM_TENANT_ID }}
-          subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_wrapper: false
-
-      - name: Get Terraform outputs from shared state
-        id: get_outputs
-        run: |
-          # Initialize Terraform with remote backend pointing to shared state
-          cat > backend.tf << EOF
-          terraform {
-            backend "azurerm" {
-              resource_group_name  = "${{ env.TF_VAR_tf_shared_resource_group_name }}"
-              storage_account_name = "${{ env.TF_VAR_tf_shared_storage_account_name }}"
-              container_name       = "${{ env.TF_VAR_tf_shared_container_name }}"
-              key                  = "${{ env.TF_VAR_tf_shared_key }}"
-            }
-          }
-          EOF
-
-          # Create minimal main.tf to satisfy Terraform
-          cat > main.tf << EOF
-          # Empty configuration to read remote state
-          EOF
-
-          # Initialize with remote backend
-          terraform init
-
-          # Get outputs from remote state
-          ACR_NAME=$(terraform output -raw acr_name)
-          ACR_USERNAME=$(terraform output -raw acr_admin_username)
-          ACR_PASSWORD=$(terraform output -raw acr_admin_password)
-
-          # Set outputs
-          echo "acr_name=$ACR_NAME" >> "$GITHUB_OUTPUT"
-          echo "acr_username=$ACR_USERNAME" >> "$GITHUB_OUTPUT"
-          echo "acr_password=$ACR_PASSWORD" >> "$GITHUB_OUTPUT"
-
   docker:
     name: Docker
     runs-on: ubuntu-latest
-    needs: acr-outputs
 
     env:
       IMAGE_NAME: ${{ secrets.IMAGE_NAME }}
-      ACR_NAME: ${{ needs.acr-outputs.outputs.acr_name }}
-      ACR_USERNAME: ${{ needs.acr-outputs.outputs.acr_username }}
-      ACR_PASSWORD: ${{ needs.acr-outputs.outputs.acr_password }}
+      ACR_NAME: ${{ secrets.ACR_NAME }}
+      ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+      ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
 
     steps:
       - name: Checkout code
@@ -119,7 +64,7 @@ jobs:
   terraform:
     name: Terraform
     runs-on: ubuntu-latest
-    needs: [acr-outputs, docker]
+    needs: docker
 
     outputs:
       function_app_name: ${{ steps.get_outputs.outputs.function_app_name }}
@@ -183,7 +128,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [acr-outputs, docker, terraform]
+    needs: [docker, terraform]
 
     env:
       PYTHON_VERSION: ${{ needs.terraform.outputs.function_app_python_version }}
@@ -232,7 +177,7 @@ jobs:
     name: Deploy
     runs-on: ubuntu-latest
     environment: production
-    needs: [acr-outputs, docker, terraform, build]
+    needs: [docker, terraform, build]
 
     env:
       FUNCTION_APP_NAME: ${{ needs.terraform.outputs.function_app_name }}

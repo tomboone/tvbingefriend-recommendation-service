@@ -6,10 +6,9 @@ This directory contains CI/CD workflows for the TV Binge Friend Recommendation S
 
 ### `deploy.yml`
 Main deployment workflow that builds and deploys the recommendation service to Azure. This workflow:
-1. Retrieves ACR credentials from shared Terraform state
-2. Builds and pushes Docker image for the data pipeline
-3. Applies Terraform infrastructure changes
-4. Builds and deploys the Azure Function App
+1. Builds and pushes Docker image for the data pipeline
+2. Applies Terraform infrastructure changes
+3. Builds and deploys the Azure Function App
 
 **Triggers:**
 - Push to `main` branch
@@ -26,13 +25,12 @@ The following secrets must be configured in the GitHub repository settings (Sett
 | `ARM_TENANT_ID` | Azure Active Directory tenant ID | `87654321-4321-4321-4321-cba987654321` |
 | `ARM_SUBSCRIPTION_ID` | Azure subscription ID | `abcdef01-2345-6789-abcd-ef0123456789` |
 
-### Shared Terraform State (for ACR Credentials)
+### Azure Container Registry (ACR)
 | Secret Name | Description | Example |
 |------------|-------------|---------|
-| `TF_SHARED_RESOURCE_GROUP_NAME` | Resource group containing shared Terraform state storage | `shared-infrastructure-rg` |
-| `TF_SHARED_STORAGE_ACCOUNT_NAME` | Storage account name for shared state | `sharedtfstate` |
-| `TF_SHARED_CONTAINER_NAME` | Blob container name for shared state | `tfstate` |
-| `TF_SHARED_KEY` | State file key/path for shared infrastructure | `shared-infrastructure.tfstate` |
+| `ACR_NAME` | Azure Container Registry name (without .azurecr.io suffix) | `tvbfcontainerregistry` |
+| `ACR_USERNAME` | ACR admin username | `tvbfcontainerregistry` |
+| `ACR_PASSWORD` | ACR admin password | `(secure password)` |
 
 ### Service Terraform State (for this service)
 | Secret Name | Description | Example |
@@ -56,9 +54,10 @@ The following secrets must be configured in the GitHub repository settings (Sett
 ### Application Configuration
 | Secret Name | Description | Example |
 |------------|-------------|---------|
-| `ALLOWED_ORIGINS` | CORS allowed origins for Function App | `https://example.com,https://app.example.com` |
+| `ALLOWED_ORIGINS` | CORS allowed origins for Function App (JSON array format) | `["https://example.com","https://app.example.com"]` |
 | `SHOW_SERVICE_URL` | URL of the Show microservice | `https://tvbf-show-service.azurewebsites.net` |
 | `IMAGE_NAME` | Docker image name for pipeline container | `recommendation-pipeline` |
+| `PIPELINE_NOTIFICATION_EMAIL` | Email address for pipeline monitoring alerts | `admin@example.com` |
 
 ### Pipeline Container Configuration (Optional)
 
@@ -114,12 +113,6 @@ Both credentials are required because the workflow runs on the `main` branch and
 
 ## Terraform Outputs Required
 
-### Shared Terraform Infrastructure
-The shared Terraform state must provide these outputs:
-- `acr_name` - Azure Container Registry name
-- `acr_admin_username` - ACR admin username
-- `acr_admin_password` - ACR admin password
-
 ### Service Terraform Infrastructure
 This service's Terraform configuration must provide:
 - `function_app_name` - Name of the Azure Function App
@@ -131,11 +124,10 @@ The workflow runs jobs sequentially to ensure proper dependency management:
 
 ```mermaid
 graph TD
-    A[Push to main] --> B[acr-outputs: Get ACR credentials from shared Terraform]
-    B --> C[docker: Build & push pipeline image]
-    C --> D[terraform: Apply infrastructure]
-    D --> E[build: Build Function App package]
-    E --> F[deploy: Deploy to Azure Functions]
+    A[Push to main] --> B[docker: Build & push pipeline image]
+    B --> C[terraform: Apply infrastructure]
+    C --> D[build: Build Function App package]
+    D --> E[deploy: Deploy to Azure Functions]
 ```
 
 This sequential execution ensures that infrastructure is provisioned before deployment and prevents concurrency issues.
