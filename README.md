@@ -20,7 +20,7 @@ graph TD
     B[Azure Container Instance<br/>1. Fetch shows from API<br/>2. Compute features<br/>3. Upload features to Blob Storage<br/>4. Run database migrations<br/>5. Populate MySQL Database]
     C[Azure Blob Storage<br/>Features only<br/>~213 MB]
     D[MySQL Database<br/>show_metadata<br/>show_similarities<br/>top 20 per show]
-    E[Azure Functions API<br/>GET /shows/{id}/recommendations<br/>Queries MySQL for pre-computed results<br/>&lt;100ms response]
+    E["Azure Functions API<br/>GET /shows/{id}/recommendations<br/>Queries MySQL for pre-computed results<br/>< 100ms response"]
 
     A --> B
     B --> C
