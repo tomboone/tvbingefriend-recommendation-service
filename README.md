@@ -6,43 +6,50 @@ Content-based TV show recommendation system using hybrid similarity scoring.
 
 ### Components
 
-1. **Azure Functions** - API layer for serving recommendations
-2. **Azure Container Instance** - Data pipeline for processing and computing similarities
-3. **Azure Blob Storage** - Storage for feature matrices and similarity data
-4. **MySQL Database** - Storage for show metadata and pre-computed recommendations
+1. **Azure Functions** - API layer for serving recommendations from MySQL
+2. **Azure Container Instance** - Scheduled data pipeline (weekly) for processing shows and computing similarities
+3. **Azure Blob Storage** - Storage for feature matrices only (~213 MB)
+4. **MySQL Database** - Primary data store for show metadata and pre-computed top-N recommendations
 
 ### Data Flow
 
 ```
-┌─────────────────────────────────────┐
-│  Azure Container Instance           │
-│  (Scheduled - Weekly/Monthly)       │
-│                                     │
-│  1. Fetch shows from API            │
-│  2. Compute features                │
-│  3. Compute similarities            │
-│  4. Upload to Blob Storage          │
-│  5. Populate MySQL Database         │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│  Azure Blob Storage                 │
-│  - Feature matrices (NPY/NPZ)       │
-│  - Similarity matrices (NPY)        │
-│  - ML models (PKL)                  │
-│  - Show metadata (CSV)              │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│  Azure Functions (API)              │
-│                                     │
-│  GET /shows/{id}/recommendations    │
-│  - Loads from MySQL (fast)          │
-│  - Falls back to Blob if needed     │
-└─────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│  Azure Container Instance (Scheduled - Weekly)           │
+│                                                          │
+│  1. Fetch shows from API                                 │
+│  2. Compute features (genre, text, metadata)             │
+│  3. Upload features to Blob Storage                      │
+│  4. Run database migrations                              │
+│  5. Populate MySQL Database:                             │
+│     - Sync show metadata                                 │
+│     - Compute similarities (in-memory, per show)         │
+│     - Store top N recommendations incrementally          │
+└────────────────────┬─────────────────┬───────────────────┘
+                     │                 │
+                     │                 │
+        ┌────────────▼──────┐    ┌─────▼───────────────────┐
+        │  Azure Blob       │    │  MySQL Database         │
+        │  Storage          │    │                         │
+        │  - Features only  │    │  show_metadata          │
+        │  - ~213 MB        │    │  show_similarities      │
+        │                   │    │  (top 20 per show)      │
+        └───────────────────┘    └────────┬────────────────┘
+                                          │
+                                          │
+                                     ┌────▼───────────────────┐
+                                     │  Azure Functions (API) │
+                                     │                        │
+                                     │  GET /shows/{id}/      │
+                                     │      recommendations   │
+                                     │                        │
+                                     │  Queries MySQL for     │
+                                     │  pre-computed results  │
+                                     │  (<100ms response)     │
+                                     └────────────────────────┘
 ```
+
+**Key Design Decision:** Similarities are computed in-memory during database population and stored directly in MySQL. This avoids storing ~205GB of similarity matrices in blob storage while maintaining fast API response times.
 
 ## Project Structure
 
