@@ -14,7 +14,7 @@ recommendation_service = ContentBasedRecommendationService()
 logger = logging.getLogger(__name__)
 
 
-@bp.route(route="shows/{show_id}/recommendations", methods=["GET"])
+@bp.route(route="shows/{show_id}/recommendations", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def get_show_recommendations(req: func.HttpRequest) -> func.HttpResponse:
     """
     Get recommendations for a specific show.
