@@ -78,7 +78,8 @@ class SimilarityRepository:
     def bulk_store_all_similarities(
             self,
             all_similarities: Dict[int, List[Dict]],
-            batch_size: int = 1000
+            batch_size: int = 1000,
+            clear_existing: bool = True
     ) -> int:
         """
         Store similarities for multiple shows in bulk.
@@ -86,14 +87,16 @@ class SimilarityRepository:
         Args:
             all_similarities: Dict mapping show_id to list of similar shows
             batch_size: Number of records to insert per batch
+            clear_existing: Whether to clear existing similarities before inserting
 
         Returns:
             Total number of similarities stored
         """
-        # Clear all existing similarities
-        logger.info("Clearing existing similarities...")
-        self.db.query(ShowSimilarity).delete()
-        self.db.commit()
+        # Clear all existing similarities if requested
+        if clear_existing:
+            logger.info("Clearing existing similarities...")
+            self.db.query(ShowSimilarity).delete()
+            self.db.commit()
 
         # Prepare all records
         all_records = []
