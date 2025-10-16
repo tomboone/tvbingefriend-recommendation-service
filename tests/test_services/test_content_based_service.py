@@ -1,15 +1,12 @@
 """Unit tests for ContentBasedRecommendationService."""
-import pytest
-import numpy as np
-import pandas as pd
-import tempfile
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock, call
-import math
 
-from tvbingefriend_recommendation_service.services.content_based_service import ContentBasedRecommendationService
-from tvbingefriend_recommendation_service.models.show_similarity import ShowSimilarity
-from tvbingefriend_recommendation_service.models.show_metdata import ShowMetadata
+from unittest.mock import Mock, patch
+
+import pytest
+
+from tvbingefriend_recommendation_service.services.content_based_service import (
+    ContentBasedRecommendationService,
+)
 
 
 class TestContentBasedRecommendationServiceInit:
@@ -31,9 +28,7 @@ class TestContentBasedRecommendationServiceInit:
         """Test initialization with custom weights."""
         # Act
         service = ContentBasedRecommendationService(
-            genre_weight=0.5,
-            text_weight=0.3,
-            metadata_weight=0.2
+            genre_weight=0.5, text_weight=0.3, metadata_weight=0.2
         )
 
         # Assert
@@ -52,11 +47,13 @@ class TestContentBasedRecommendationServiceInit:
     def test_init_with_blob_storage_enabled(self, monkeypatch, mock_blob_storage_client):
         """Test initialization with blob storage enabled."""
         # Arrange
-        monkeypatch.setenv('USE_BLOB_STORAGE', 'true')
-        monkeypatch.setenv('AZURE_STORAGE_CONNECTION_STRING', 'test_connection')
-        monkeypatch.setenv('STORAGE_CONTAINER_NAME', 'test-container')
+        monkeypatch.setenv("USE_BLOB_STORAGE", "true")
+        monkeypatch.setenv("AZURE_STORAGE_CONNECTION_STRING", "test_connection")
+        monkeypatch.setenv("STORAGE_CONTAINER_NAME", "test-container")
 
-        with patch('tvbingefriend_recommendation_service.services.content_based_service.BlobStorageClient') as mock_blob_client_class:
+        with patch(
+            "tvbingefriend_recommendation_service.services.content_based_service.BlobStorageClient"
+        ) as mock_blob_client_class:
             mock_blob_client_class.return_value = mock_blob_storage_client
 
             # Act
@@ -79,7 +76,7 @@ class TestContentBasedRecommendationServiceInit:
     def test_init_detects_blob_storage_from_config(self, monkeypatch):
         """Test that blob storage is auto-detected from config."""
         # Arrange
-        monkeypatch.setenv('USE_BLOB_STORAGE', 'false')
+        monkeypatch.setenv("USE_BLOB_STORAGE", "false")
 
         # Act
         service = ContentBasedRecommendationService()
@@ -95,8 +92,7 @@ class TestGetDataDir:
         """Test that local directory is returned when blob is disabled."""
         # Arrange
         service = ContentBasedRecommendationService(
-            processed_data_dir=temp_data_dir,
-            use_blob=False
+            processed_data_dir=temp_data_dir, use_blob=False
         )
 
         # Act
@@ -108,7 +104,9 @@ class TestGetDataDir:
     def test_get_data_dir_downloads_from_blob_when_enabled(self, mock_blob_storage_client):
         """Test that data is downloaded from blob when enabled."""
         # Arrange
-        with patch('tvbingefriend_recommendation_service.services.content_based_service.BlobStorageClient') as mock_blob_class:
+        with patch(
+            "tvbingefriend_recommendation_service.services.content_based_service.BlobStorageClient"
+        ) as mock_blob_class:
             mock_blob_class.return_value = mock_blob_storage_client
             service = ContentBasedRecommendationService(use_blob=True)
 
@@ -123,7 +121,9 @@ class TestGetDataDir:
     def test_get_data_dir_reuses_temp_dir_on_subsequent_calls(self, mock_blob_storage_client):
         """Test that temp directory is reused on subsequent calls."""
         # Arrange
-        with patch('tvbingefriend_recommendation_service.services.content_based_service.BlobStorageClient') as mock_blob_class:
+        with patch(
+            "tvbingefriend_recommendation_service.services.content_based_service.BlobStorageClient"
+        ) as mock_blob_class:
             mock_blob_class.return_value = mock_blob_storage_client
             service = ContentBasedRecommendationService(use_blob=True)
 
@@ -154,8 +154,7 @@ class TestLoadSimilarityMatrices:
         """Test loading all similarity matrices from disk."""
         # Arrange
         service = ContentBasedRecommendationService(
-            processed_data_dir=temp_data_dir_with_files,
-            use_blob=False
+            processed_data_dir=temp_data_dir_with_files, use_blob=False
         )
 
         # Act
@@ -175,7 +174,7 @@ class TestLoadSimilarityMatrices:
             use_blob=False,
             genre_weight=0.4,
             text_weight=0.5,
-            metadata_weight=0.1
+            metadata_weight=0.1,
         )
 
         # Act
@@ -190,8 +189,7 @@ class TestLoadSimilarityMatrices:
         """Test that calling load multiple times doesn't reload data."""
         # Arrange
         service = ContentBasedRecommendationService(
-            processed_data_dir=temp_data_dir_with_files,
-            use_blob=False
+            processed_data_dir=temp_data_dir_with_files, use_blob=False
         )
 
         # Act
@@ -211,8 +209,7 @@ class TestLoadShowMappings:
         """Test that show ID to index mappings are created correctly."""
         # Arrange
         service = ContentBasedRecommendationService(
-            processed_data_dir=temp_data_dir_with_files,
-            use_blob=False
+            processed_data_dir=temp_data_dir_with_files, use_blob=False
         )
 
         # Act
@@ -227,8 +224,7 @@ class TestLoadShowMappings:
         """Test that calling load multiple times doesn't reload data."""
         # Arrange
         service = ContentBasedRecommendationService(
-            processed_data_dir=temp_data_dir_with_files,
-            use_blob=False
+            processed_data_dir=temp_data_dir_with_files, use_blob=False
         )
 
         # Act
@@ -248,8 +244,7 @@ class TestGetRecommendationsFromMatrix:
         """Test getting top N recommendations from similarity matrix."""
         # Arrange
         service = ContentBasedRecommendationService(
-            processed_data_dir=temp_data_dir_with_files,
-            use_blob=False
+            processed_data_dir=temp_data_dir_with_files, use_blob=False
         )
 
         # Act
@@ -257,15 +252,14 @@ class TestGetRecommendationsFromMatrix:
 
         # Assert
         assert len(recommendations) <= 2
-        assert all('show_id' in rec for rec in recommendations)
-        assert all('similarity_score' in rec for rec in recommendations)
+        assert all("show_id" in rec for rec in recommendations)
+        assert all("similarity_score" in rec for rec in recommendations)
 
     def test_get_recommendations_from_matrix_excludes_self(self, temp_data_dir_with_files):
         """Test that recommendations exclude the source show itself."""
         # Arrange
         service = ContentBasedRecommendationService(
-            processed_data_dir=temp_data_dir_with_files,
-            use_blob=False
+            processed_data_dir=temp_data_dir_with_files, use_blob=False
         )
 
         # Act
@@ -273,33 +267,33 @@ class TestGetRecommendationsFromMatrix:
 
         # Assert
         # Should not include the source show
-        assert all(rec['show_id'] != 1 for rec in recommendations)
+        assert all(rec["show_id"] != 1 for rec in recommendations)
 
-    def test_get_recommendations_from_matrix_filters_by_min_similarity(self, temp_data_dir_with_files):
+    def test_get_recommendations_from_matrix_filters_by_min_similarity(
+        self, temp_data_dir_with_files
+    ):
         """Test filtering recommendations by minimum similarity."""
         # Arrange
         service = ContentBasedRecommendationService(
-            processed_data_dir=temp_data_dir_with_files,
-            use_blob=False
+            processed_data_dir=temp_data_dir_with_files, use_blob=False
         )
 
         # Act
         recommendations = service.get_recommendations_from_matrix(
-            show_id=1,
-            n=10,
-            min_similarity=0.9
+            show_id=1, n=10, min_similarity=0.9
         )
 
         # Assert
         # All recommendations should have similarity >= 0.9
-        assert all(rec['similarity_score'] >= 0.9 for rec in recommendations)
+        assert all(rec["similarity_score"] >= 0.9 for rec in recommendations)
 
-    def test_get_recommendations_from_matrix_returns_empty_for_unknown_show(self, temp_data_dir_with_files):
+    def test_get_recommendations_from_matrix_returns_empty_for_unknown_show(
+        self, temp_data_dir_with_files
+    ):
         """Test that empty list is returned for unknown show ID."""
         # Arrange
         service = ContentBasedRecommendationService(
-            processed_data_dir=temp_data_dir_with_files,
-            use_blob=False
+            processed_data_dir=temp_data_dir_with_files, use_blob=False
         )
 
         # Act
@@ -308,12 +302,13 @@ class TestGetRecommendationsFromMatrix:
         # Assert
         assert recommendations == []
 
-    def test_get_recommendations_from_matrix_includes_component_scores(self, temp_data_dir_with_files):
+    def test_get_recommendations_from_matrix_includes_component_scores(
+        self, temp_data_dir_with_files
+    ):
         """Test that recommendations include all component scores."""
         # Arrange
         service = ContentBasedRecommendationService(
-            processed_data_dir=temp_data_dir_with_files,
-            use_blob=False
+            processed_data_dir=temp_data_dir_with_files, use_blob=False
         )
 
         # Act
@@ -322,19 +317,20 @@ class TestGetRecommendationsFromMatrix:
         # Assert
         if recommendations:
             rec = recommendations[0]
-            assert 'genre_score' in rec
-            assert 'text_score' in rec
-            assert 'metadata_score' in rec
-            assert isinstance(rec['genre_score'], float)
-            assert isinstance(rec['text_score'], float)
-            assert isinstance(rec['metadata_score'], float)
+            assert "genre_score" in rec
+            assert "text_score" in rec
+            assert "metadata_score" in rec
+            assert isinstance(rec["genre_score"], float)
+            assert isinstance(rec["text_score"], float)
+            assert isinstance(rec["metadata_score"], float)
 
-    def test_get_recommendations_from_matrix_orders_by_similarity_descending(self, temp_data_dir_with_files):
+    def test_get_recommendations_from_matrix_orders_by_similarity_descending(
+        self, temp_data_dir_with_files
+    ):
         """Test that recommendations are ordered by similarity score (descending)."""
         # Arrange
         service = ContentBasedRecommendationService(
-            processed_data_dir=temp_data_dir_with_files,
-            use_blob=False
+            processed_data_dir=temp_data_dir_with_files, use_blob=False
         )
 
         # Act
@@ -342,14 +338,14 @@ class TestGetRecommendationsFromMatrix:
 
         # Assert
         if len(recommendations) >= 2:
-            scores = [rec['similarity_score'] for rec in recommendations]
+            scores = [rec["similarity_score"] for rec in recommendations]
             assert scores == sorted(scores, reverse=True)
 
 
 class TestGetRecommendationsFromDb:
     """Tests for get_recommendations_from_db method."""
 
-    @patch('tvbingefriend_recommendation_service.services.content_based_service.SessionLocal')
+    @patch("tvbingefriend_recommendation_service.services.content_based_service.SessionLocal")
     def test_get_recommendations_from_db_queries_database(self, mock_session_local):
         """Test getting recommendations from database."""
         # Arrange
@@ -358,16 +354,14 @@ class TestGetRecommendationsFromDb:
 
         mock_repo = Mock()
         mock_repo.get_similar_shows_with_metadata.return_value = [
-            {
-                'show_id': 2,
-                'name': 'Similar Show',
-                'similarity_score': 0.85
-            }
+            {"show_id": 2, "name": "Similar Show", "similarity_score": 0.85}
         ]
 
         service = ContentBasedRecommendationService(use_blob=False)
 
-        with patch('tvbingefriend_recommendation_service.services.content_based_service.SimilarityRepository') as mock_repo_class:
+        with patch(
+            "tvbingefriend_recommendation_service.services.content_based_service.SimilarityRepository"
+        ) as mock_repo_class:
             mock_repo_class.return_value = mock_repo
 
             # Act
@@ -375,14 +369,12 @@ class TestGetRecommendationsFromDb:
 
             # Assert
             assert len(recommendations) == 1
-            assert recommendations[0]['show_id'] == 2
+            assert recommendations[0]["show_id"] == 2
             mock_repo.get_similar_shows_with_metadata.assert_called_once_with(
-                show_id=1,
-                n=10,
-                min_similarity=0.0
+                show_id=1, n=10, min_similarity=0.0
             )
 
-    @patch('tvbingefriend_recommendation_service.services.content_based_service.SessionLocal')
+    @patch("tvbingefriend_recommendation_service.services.content_based_service.SessionLocal")
     def test_get_recommendations_from_db_closes_session(self, mock_session_local):
         """Test that database session is properly closed."""
         # Arrange
@@ -391,14 +383,16 @@ class TestGetRecommendationsFromDb:
 
         service = ContentBasedRecommendationService(use_blob=False)
 
-        with patch('tvbingefriend_recommendation_service.services.content_based_service.SimilarityRepository'):
+        with patch(
+            "tvbingefriend_recommendation_service.services.content_based_service.SimilarityRepository"
+        ):
             # Act
             service.get_recommendations_from_db(show_id=1)
 
             # Assert
             mock_db.close.assert_called_once()
 
-    @patch('tvbingefriend_recommendation_service.services.content_based_service.SessionLocal')
+    @patch("tvbingefriend_recommendation_service.services.content_based_service.SessionLocal")
     def test_get_recommendations_from_db_with_min_similarity(self, mock_session_local):
         """Test getting recommendations with minimum similarity filter."""
         # Arrange
@@ -410,7 +404,9 @@ class TestGetRecommendationsFromDb:
 
         service = ContentBasedRecommendationService(use_blob=False)
 
-        with patch('tvbingefriend_recommendation_service.services.content_based_service.SimilarityRepository') as mock_repo_class:
+        with patch(
+            "tvbingefriend_recommendation_service.services.content_based_service.SimilarityRepository"
+        ) as mock_repo_class:
             mock_repo_class.return_value = mock_repo
 
             # Act
@@ -418,16 +414,14 @@ class TestGetRecommendationsFromDb:
 
             # Assert
             mock_repo.get_similar_shows_with_metadata.assert_called_once_with(
-                show_id=1,
-                n=10,
-                min_similarity=0.5
+                show_id=1, n=10, min_similarity=0.5
             )
 
 
 class TestComputeAndStoreAllSimilarities:
     """Tests for compute_and_store_all_similarities method."""
 
-    @patch('tvbingefriend_recommendation_service.services.content_based_service.SessionLocal')
+    @patch("tvbingefriend_recommendation_service.services.content_based_service.SessionLocal")
     def test_compute_and_store_all_similarities_processes_all_shows(
         self, mock_session_local, temp_data_dir_with_files
     ):
@@ -439,28 +433,29 @@ class TestComputeAndStoreAllSimilarities:
         mock_repo = Mock()
         mock_repo.bulk_store_all_similarities.return_value = 6
         mock_repo.get_similarity_stats.return_value = {
-            'total_records': 6,
-            'unique_shows': 3,
-            'avg_similarities_per_show': 2.0
+            "total_records": 6,
+            "unique_shows": 3,
+            "avg_similarities_per_show": 2.0,
         }
 
         service = ContentBasedRecommendationService(
-            processed_data_dir=temp_data_dir_with_files,
-            use_blob=False
+            processed_data_dir=temp_data_dir_with_files, use_blob=False
         )
 
-        with patch('tvbingefriend_recommendation_service.services.content_based_service.SimilarityRepository') as mock_repo_class:
+        with patch(
+            "tvbingefriend_recommendation_service.services.content_based_service.SimilarityRepository"
+        ) as mock_repo_class:
             mock_repo_class.return_value = mock_repo
 
             # Act
             stats = service.compute_and_store_all_similarities(top_n_per_show=2)
 
             # Assert
-            assert stats['computed_shows'] == 3
-            assert stats['top_n_per_show'] == 2
+            assert stats["computed_shows"] == 3
+            assert stats["top_n_per_show"] == 2
             mock_repo.bulk_store_all_similarities.assert_called_once()
 
-    @patch('tvbingefriend_recommendation_service.services.content_based_service.SessionLocal')
+    @patch("tvbingefriend_recommendation_service.services.content_based_service.SessionLocal")
     def test_compute_and_store_all_similarities_uses_min_similarity_threshold(
         self, mock_session_local, temp_data_dir_with_files
     ):
@@ -472,29 +467,27 @@ class TestComputeAndStoreAllSimilarities:
         mock_repo = Mock()
         mock_repo.bulk_store_all_similarities.return_value = 3
         mock_repo.get_similarity_stats.return_value = {
-            'total_records': 3,
-            'unique_shows': 3,
-            'avg_similarities_per_show': 1.0
+            "total_records": 3,
+            "unique_shows": 3,
+            "avg_similarities_per_show": 1.0,
         }
 
         service = ContentBasedRecommendationService(
-            processed_data_dir=temp_data_dir_with_files,
-            use_blob=False
+            processed_data_dir=temp_data_dir_with_files, use_blob=False
         )
 
-        with patch('tvbingefriend_recommendation_service.services.content_based_service.SimilarityRepository') as mock_repo_class:
+        with patch(
+            "tvbingefriend_recommendation_service.services.content_based_service.SimilarityRepository"
+        ) as mock_repo_class:
             mock_repo_class.return_value = mock_repo
 
             # Act
-            stats = service.compute_and_store_all_similarities(
-                top_n_per_show=5,
-                min_similarity=0.5
-            )
+            stats = service.compute_and_store_all_similarities(top_n_per_show=5, min_similarity=0.5)
 
             # Assert
-            assert stats['min_similarity'] == 0.5
+            assert stats["min_similarity"] == 0.5
 
-    @patch('tvbingefriend_recommendation_service.services.content_based_service.SessionLocal')
+    @patch("tvbingefriend_recommendation_service.services.content_based_service.SessionLocal")
     def test_compute_and_store_all_similarities_closes_session(
         self, mock_session_local, temp_data_dir_with_files
     ):
@@ -506,17 +499,18 @@ class TestComputeAndStoreAllSimilarities:
         mock_repo = Mock()
         mock_repo.bulk_store_all_similarities.return_value = 0
         mock_repo.get_similarity_stats.return_value = {
-            'total_records': 0,
-            'unique_shows': 0,
-            'avg_similarities_per_show': 0
+            "total_records": 0,
+            "unique_shows": 0,
+            "avg_similarities_per_show": 0,
         }
 
         service = ContentBasedRecommendationService(
-            processed_data_dir=temp_data_dir_with_files,
-            use_blob=False
+            processed_data_dir=temp_data_dir_with_files, use_blob=False
         )
 
-        with patch('tvbingefriend_recommendation_service.services.content_based_service.SimilarityRepository') as mock_repo_class:
+        with patch(
+            "tvbingefriend_recommendation_service.services.content_based_service.SimilarityRepository"
+        ) as mock_repo_class:
             mock_repo_class.return_value = mock_repo
 
             # Act
@@ -529,7 +523,7 @@ class TestComputeAndStoreAllSimilarities:
 class TestSyncMetadataToDb:
     """Tests for sync_metadata_to_db method."""
 
-    @patch('tvbingefriend_recommendation_service.services.content_based_service.SessionLocal')
+    @patch("tvbingefriend_recommendation_service.services.content_based_service.SessionLocal")
     def test_sync_metadata_to_db_stores_shows(self, mock_session_local):
         """Test syncing show metadata to database."""
         # Arrange
@@ -540,15 +534,31 @@ class TestSyncMetadataToDb:
         mock_repo.bulk_store_shows.return_value = 2
 
         shows_data = [
-            {'id': 1, 'name': 'Show 1', 'genres': ['Drama'], 'summary': 'Summary 1',
-             'rating_avg': 8.5, 'type': 'Scripted', 'language': 'English'},
-            {'id': 2, 'name': 'Show 2', 'genres': ['Comedy'], 'summary': 'Summary 2',
-             'rating_avg': 7.5, 'type': 'Scripted', 'language': 'English'}
+            {
+                "id": 1,
+                "name": "Show 1",
+                "genres": ["Drama"],
+                "summary": "Summary 1",
+                "rating_avg": 8.5,
+                "type": "Scripted",
+                "language": "English",
+            },
+            {
+                "id": 2,
+                "name": "Show 2",
+                "genres": ["Comedy"],
+                "summary": "Summary 2",
+                "rating_avg": 7.5,
+                "type": "Scripted",
+                "language": "English",
+            },
         ]
 
         service = ContentBasedRecommendationService(use_blob=False)
 
-        with patch('tvbingefriend_recommendation_service.services.content_based_service.MetadataRepository') as mock_repo_class:
+        with patch(
+            "tvbingefriend_recommendation_service.services.content_based_service.MetadataRepository"
+        ) as mock_repo_class:
             mock_repo_class.return_value = mock_repo
 
             # Act
@@ -558,7 +568,7 @@ class TestSyncMetadataToDb:
             assert count == 2
             mock_repo.bulk_store_shows.assert_called_once()
 
-    @patch('tvbingefriend_recommendation_service.services.content_based_service.SessionLocal')
+    @patch("tvbingefriend_recommendation_service.services.content_based_service.SessionLocal")
     def test_sync_metadata_to_db_handles_nan_ratings(self, mock_session_local):
         """Test that NaN ratings are converted to None."""
         # Arrange
@@ -570,30 +580,32 @@ class TestSyncMetadataToDb:
 
         shows_data = [
             {
-                'id': 1,
-                'name': 'Show 1',
-                'genres': ['Drama'],
-                'summary': 'Summary 1',
-                'rating_avg': float('nan'),  # NaN value
-                'type': 'Scripted',
-                'language': 'English'
+                "id": 1,
+                "name": "Show 1",
+                "genres": ["Drama"],
+                "summary": "Summary 1",
+                "rating_avg": float("nan"),  # NaN value
+                "type": "Scripted",
+                "language": "English",
             }
         ]
 
         service = ContentBasedRecommendationService(use_blob=False)
 
-        with patch('tvbingefriend_recommendation_service.services.content_based_service.MetadataRepository') as mock_repo_class:
+        with patch(
+            "tvbingefriend_recommendation_service.services.content_based_service.MetadataRepository"
+        ) as mock_repo_class:
             mock_repo_class.return_value = mock_repo
 
             # Act
-            count = service.sync_metadata_to_db(shows_data)
+            service.sync_metadata_to_db(shows_data)
 
             # Assert
             # Check that the rating was converted to None
             call_args = mock_repo.bulk_store_shows.call_args[0][0]
-            assert call_args[0]['rating'] is None
+            assert call_args[0]["rating"] is None
 
-    @patch('tvbingefriend_recommendation_service.services.content_based_service.SessionLocal')
+    @patch("tvbingefriend_recommendation_service.services.content_based_service.SessionLocal")
     def test_sync_metadata_to_db_uses_summary_clean_if_available(self, mock_session_local):
         """Test that summary_clean is used when available."""
         # Arrange
@@ -605,20 +617,22 @@ class TestSyncMetadataToDb:
 
         shows_data = [
             {
-                'id': 1,
-                'name': 'Show 1',
-                'genres': ['Drama'],
-                'summary': '<p>HTML Summary</p>',
-                'summary_clean': 'Clean Summary',
-                'rating_avg': 8.5,
-                'type': 'Scripted',
-                'language': 'English'
+                "id": 1,
+                "name": "Show 1",
+                "genres": ["Drama"],
+                "summary": "<p>HTML Summary</p>",
+                "summary_clean": "Clean Summary",
+                "rating_avg": 8.5,
+                "type": "Scripted",
+                "language": "English",
             }
         ]
 
         service = ContentBasedRecommendationService(use_blob=False)
 
-        with patch('tvbingefriend_recommendation_service.services.content_based_service.MetadataRepository') as mock_repo_class:
+        with patch(
+            "tvbingefriend_recommendation_service.services.content_based_service.MetadataRepository"
+        ) as mock_repo_class:
             mock_repo_class.return_value = mock_repo
 
             # Act
@@ -626,9 +640,9 @@ class TestSyncMetadataToDb:
 
             # Assert
             call_args = mock_repo.bulk_store_shows.call_args[0][0]
-            assert call_args[0]['summary'] == 'Clean Summary'
+            assert call_args[0]["summary"] == "Clean Summary"
 
-    @patch('tvbingefriend_recommendation_service.services.content_based_service.SessionLocal')
+    @patch("tvbingefriend_recommendation_service.services.content_based_service.SessionLocal")
     def test_sync_metadata_to_db_extracts_platform_from_show_data(self, mock_session_local):
         """Test that platform is correctly extracted from show data."""
         # Arrange
@@ -640,20 +654,22 @@ class TestSyncMetadataToDb:
 
         shows_data = [
             {
-                'id': 1,
-                'name': 'Show 1',
-                'genres': ['Drama'],
-                'summary': 'Summary',
-                'platform': 'Netflix',
-                'rating_avg': 8.5,
-                'type': 'Scripted',
-                'language': 'English'
+                "id": 1,
+                "name": "Show 1",
+                "genres": ["Drama"],
+                "summary": "Summary",
+                "platform": "Netflix",
+                "rating_avg": 8.5,
+                "type": "Scripted",
+                "language": "English",
             }
         ]
 
         service = ContentBasedRecommendationService(use_blob=False)
 
-        with patch('tvbingefriend_recommendation_service.services.content_based_service.MetadataRepository') as mock_repo_class:
+        with patch(
+            "tvbingefriend_recommendation_service.services.content_based_service.MetadataRepository"
+        ) as mock_repo_class:
             mock_repo_class.return_value = mock_repo
 
             # Act
@@ -661,9 +677,9 @@ class TestSyncMetadataToDb:
 
             # Assert
             call_args = mock_repo.bulk_store_shows.call_args[0][0]
-            assert call_args[0]['network'] == 'Netflix'
+            assert call_args[0]["network"] == "Netflix"
 
-    @patch('tvbingefriend_recommendation_service.services.content_based_service.SessionLocal')
+    @patch("tvbingefriend_recommendation_service.services.content_based_service.SessionLocal")
     def test_sync_metadata_to_db_closes_session(self, mock_session_local):
         """Test that database session is properly closed."""
         # Arrange
@@ -675,7 +691,9 @@ class TestSyncMetadataToDb:
 
         service = ContentBasedRecommendationService(use_blob=False)
 
-        with patch('tvbingefriend_recommendation_service.services.content_based_service.MetadataRepository') as mock_repo_class:
+        with patch(
+            "tvbingefriend_recommendation_service.services.content_based_service.MetadataRepository"
+        ) as mock_repo_class:
             mock_repo_class.return_value = mock_repo
 
             # Act
@@ -688,7 +706,7 @@ class TestSyncMetadataToDb:
 class TestGetStats:
     """Tests for get_stats method."""
 
-    @patch('tvbingefriend_recommendation_service.services.content_based_service.SessionLocal')
+    @patch("tvbingefriend_recommendation_service.services.content_based_service.SessionLocal")
     def test_get_stats_returns_all_statistics(self, mock_session_local):
         """Test getting comprehensive statistics."""
         # Arrange
@@ -697,23 +715,26 @@ class TestGetStats:
 
         mock_similarity_repo = Mock()
         mock_similarity_repo.get_similarity_stats.return_value = {
-            'total_records': 100,
-            'unique_shows': 50,
-            'avg_similarities_per_show': 2.0
+            "total_records": 100,
+            "unique_shows": 50,
+            "avg_similarities_per_show": 2.0,
         }
 
         mock_metadata_repo = Mock()
         mock_metadata_repo.count_shows.return_value = 50
 
         service = ContentBasedRecommendationService(
-            use_blob=False,
-            genre_weight=0.4,
-            text_weight=0.5,
-            metadata_weight=0.1
+            use_blob=False, genre_weight=0.4, text_weight=0.5, metadata_weight=0.1
         )
 
-        with patch('tvbingefriend_recommendation_service.services.content_based_service.SimilarityRepository') as mock_sim_class, \
-             patch('tvbingefriend_recommendation_service.services.content_based_service.MetadataRepository') as mock_meta_class:
+        with (
+            patch(
+                "tvbingefriend_recommendation_service.services.content_based_service.SimilarityRepository"
+            ) as mock_sim_class,
+            patch(
+                "tvbingefriend_recommendation_service.services.content_based_service.MetadataRepository"
+            ) as mock_meta_class,
+        ):
             mock_sim_class.return_value = mock_similarity_repo
             mock_meta_class.return_value = mock_metadata_repo
 
@@ -721,15 +742,15 @@ class TestGetStats:
             stats = service.get_stats()
 
             # Assert
-            assert 'similarity_stats' in stats
-            assert 'cached_shows' in stats
-            assert 'weights' in stats
-            assert stats['cached_shows'] == 50
-            assert stats['weights']['genre'] == 0.4
-            assert stats['weights']['text'] == 0.5
-            assert stats['weights']['metadata'] == 0.1
+            assert "similarity_stats" in stats
+            assert "cached_shows" in stats
+            assert "weights" in stats
+            assert stats["cached_shows"] == 50
+            assert stats["weights"]["genre"] == 0.4
+            assert stats["weights"]["text"] == 0.5
+            assert stats["weights"]["metadata"] == 0.1
 
-    @patch('tvbingefriend_recommendation_service.services.content_based_service.SessionLocal')
+    @patch("tvbingefriend_recommendation_service.services.content_based_service.SessionLocal")
     def test_get_stats_closes_session(self, mock_session_local):
         """Test that database session is properly closed."""
         # Arrange
@@ -744,8 +765,14 @@ class TestGetStats:
 
         service = ContentBasedRecommendationService(use_blob=False)
 
-        with patch('tvbingefriend_recommendation_service.services.content_based_service.SimilarityRepository') as mock_sim_class, \
-             patch('tvbingefriend_recommendation_service.services.content_based_service.MetadataRepository') as mock_meta_class:
+        with (
+            patch(
+                "tvbingefriend_recommendation_service.services.content_based_service.SimilarityRepository"
+            ) as mock_sim_class,
+            patch(
+                "tvbingefriend_recommendation_service.services.content_based_service.MetadataRepository"
+            ) as mock_meta_class,
+        ):
             mock_sim_class.return_value = mock_similarity_repo
             mock_meta_class.return_value = mock_metadata_repo
 

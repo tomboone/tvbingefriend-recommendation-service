@@ -1,6 +1,8 @@
 """Stores pre-computed similarity scores between shows."""
-from sqlalchemy import Column, Integer, Float, DateTime, Index
-from datetime import datetime, UTC
+
+from datetime import UTC, datetime
+
+from sqlalchemy import Column, DateTime, Float, Index, Integer
 
 from tvbingefriend_recommendation_service.models.base import Base
 
@@ -10,7 +12,8 @@ class ShowSimilarity(Base):
 
     Each row represents one show's similarity to another show.
     """
-    __tablename__ = 'show_similarities'
+
+    __tablename__ = "show_similarities"
 
     # Composite primary key
     show_id = Column(Integer, primary_key=True)
@@ -27,8 +30,8 @@ class ShowSimilarity(Base):
 
     # Index for fast lookups
     __table_args__ = (
-        Index('idx_show_id', 'show_id'),
-        Index('idx_similarity_score', 'show_id', 'similarity_score'),
+        Index("idx_show_id", "show_id"),
+        Index("idx_similarity_score", "show_id", "similarity_score"),
     )
 
     def __repr__(self):

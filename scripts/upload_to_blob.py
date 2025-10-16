@@ -10,19 +10,18 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-import logging
 import argparse
+import logging
 
-from tvbingefriend_recommendation_service.storage import BlobStorageClient
 from tvbingefriend_recommendation_service.config import (
     get_azure_storage_connection_string,
-    get_storage_container_name
+    get_storage_container_name,
 )
+from tvbingefriend_recommendation_service.storage import BlobStorageClient
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 logger = logging.getLogger(__name__)
@@ -32,7 +31,7 @@ def upload_processed_data(
     local_dir: Path,
     blob_prefix: str = "processed",
     connection_string: str = None,
-    container_name: str = None
+    container_name: str = None,
 ) -> int:
     """
     Upload all processed data files to blob storage.
@@ -46,9 +45,9 @@ def upload_processed_data(
     Returns:
         Number of files uploaded
     """
-    logger.info("="*70)
+    logger.info("=" * 70)
     logger.info("UPLOADING PROCESSED DATA TO BLOB STORAGE")
-    logger.info("="*70)
+    logger.info("=" * 70)
 
     # Get connection string and container name from config if not provided
     if connection_string is None:
@@ -65,27 +64,28 @@ def upload_processed_data(
     logger.info(f"Local directory: {local_dir}")
     logger.info(f"Container: {container_name}")
     logger.info(f"Blob prefix: {blob_prefix}")
-    logger.info("="*70)
+    logger.info("=" * 70)
 
     # Initialize blob client
     blob_client = BlobStorageClient(
-        connection_string=connection_string,
-        container_name=container_name
+        connection_string=connection_string, container_name=container_name
     )
 
     # File patterns to upload (FEATURES ONLY, not similarities)
     file_patterns = [
-        'genre_features.npy',
-        'text_features.npz',
-        'platform_features.npy',
-        'type_features.npy',
-        'language_features.npy',
-        'tfidf_vectorizer.pkl',
-        'genre_encoder.pkl',
-        'shows_metadata.csv',
+        "genre_features.npy",
+        "text_features.npz",
+        "platform_features.npy",
+        "type_features.npy",
+        "language_features.npy",
+        "tfidf_vectorizer.pkl",
+        "genre_encoder.pkl",
+        "shows_metadata.csv",
     ]
 
-    logger.info("\nUploading features only (excluding similarity matrices for storage optimization)")
+    logger.info(
+        "\nUploading features only (excluding similarity matrices for storage optimization)"
+    )
     logger.info("Files to upload:")
     for pattern in file_patterns:
         logger.info(f"  - {pattern}")
@@ -101,9 +101,9 @@ def upload_processed_data(
         else:
             logger.warning(f"⚠️  File not found: {file_path}")
 
-    logger.info("\n" + "="*70)
-    logger.info(f"✓ UPLOAD COMPLETE")
-    logger.info("="*70)
+    logger.info("\n" + "=" * 70)
+    logger.info("✓ UPLOAD COMPLETE")
+    logger.info("=" * 70)
     logger.info(f"Uploaded {uploaded_count} files")
 
     # List uploaded files
@@ -117,32 +117,30 @@ def upload_processed_data(
 
 def main():
     """Main execution function."""
-    parser = argparse.ArgumentParser(
-        description='Upload processed data to Azure Blob Storage'
-    )
+    parser = argparse.ArgumentParser(description="Upload processed data to Azure Blob Storage")
     parser.add_argument(
-        '--local-dir',
+        "--local-dir",
         type=str,
-        default='data/processed',
-        help='Local directory with processed data (default: data/processed)'
+        default="data/processed",
+        help="Local directory with processed data (default: data/processed)",
     )
     parser.add_argument(
-        '--blob-prefix',
+        "--blob-prefix",
         type=str,
-        default='processed',
-        help='Blob prefix/folder for uploaded files (default: processed)'
+        default="processed",
+        help="Blob prefix/folder for uploaded files (default: processed)",
     )
     parser.add_argument(
-        '--connection-string',
+        "--connection-string",
         type=str,
         default=None,
-        help='Azure Storage connection string (default: from config)'
+        help="Azure Storage connection string (default: from config)",
     )
     parser.add_argument(
-        '--container-name',
+        "--container-name",
         type=str,
         default=None,
-        help='Storage container name (default: from config)'
+        help="Storage container name (default: from config)",
     )
 
     args = parser.parse_args()
@@ -159,7 +157,7 @@ def main():
             local_dir=local_dir,
             blob_prefix=args.blob_prefix,
             connection_string=args.connection_string,
-            container_name=args.container_name
+            container_name=args.container_name,
         )
 
         if uploaded_count == 0:
@@ -171,5 +169,5 @@ def main():
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

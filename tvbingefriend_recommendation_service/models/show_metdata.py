@@ -1,6 +1,8 @@
 """Cached show metadata for quick access"""
-from sqlalchemy import Column, Integer, Float, DateTime, String, Text, JSON
-from datetime import datetime, UTC
+
+from datetime import UTC, datetime
+
+from sqlalchemy import JSON, Column, DateTime, Float, Integer, String, Text
 
 from tvbingefriend_recommendation_service.models.base import Base
 
@@ -9,7 +11,8 @@ class ShowMetadata(Base):
     """Cached show metadata for quick access.
     Mirrors data from your show service.
     """
-    __tablename__ = 'show_metadata'
+
+    __tablename__ = "show_metadata"
 
     show_id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)

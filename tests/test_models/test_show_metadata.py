@@ -1,6 +1,8 @@
 """Unit tests for tvbingefriend_recommendation_service.models.show_metdata."""
+
+from datetime import UTC, datetime
+
 import pytest
-from datetime import datetime, UTC
 from sqlalchemy.exc import IntegrityError
 
 from tvbingefriend_recommendation_service.models.show_metdata import ShowMetadata
@@ -14,13 +16,13 @@ class TestShowMetadata:
         # Arrange & Act
         show = ShowMetadata(
             show_id=1,
-            name='Breaking Bad',
-            genres=['Drama', 'Crime', 'Thriller'],
-            summary='A high school chemistry teacher turned methamphetamine producer.',
+            name="Breaking Bad",
+            genres=["Drama", "Crime", "Thriller"],
+            summary="A high school chemistry teacher turned methamphetamine producer.",
             rating=9.5,
-            type='Scripted',
-            language='English',
-            network='AMC'
+            type="Scripted",
+            language="English",
+            network="AMC",
         )
         test_db_session.add(show)
         test_db_session.commit()
@@ -28,18 +30,20 @@ class TestShowMetadata:
         # Assert
         retrieved = test_db_session.query(ShowMetadata).filter_by(show_id=1).first()
         assert retrieved is not None
-        assert retrieved.name == 'Breaking Bad'
-        assert retrieved.genres == ['Drama', 'Crime', 'Thriller']
-        assert retrieved.summary == 'A high school chemistry teacher turned methamphetamine producer.'
+        assert retrieved.name == "Breaking Bad"
+        assert retrieved.genres == ["Drama", "Crime", "Thriller"]
+        assert (
+            retrieved.summary == "A high school chemistry teacher turned methamphetamine producer."
+        )
         assert retrieved.rating == 9.5
-        assert retrieved.type == 'Scripted'
-        assert retrieved.language == 'English'
-        assert retrieved.network == 'AMC'
+        assert retrieved.type == "Scripted"
+        assert retrieved.language == "English"
+        assert retrieved.network == "AMC"
 
     def test_show_metadata_creation_with_minimal_fields(self, test_db_session):
         """Test creating ShowMetadata with only required fields."""
         # Arrange & Act
-        show = ShowMetadata(show_id=1, name='Test Show')
+        show = ShowMetadata(show_id=1, name="Test Show")
         test_db_session.add(show)
         test_db_session.commit()
 
@@ -47,7 +51,7 @@ class TestShowMetadata:
         retrieved = test_db_session.query(ShowMetadata).filter_by(show_id=1).first()
         assert retrieved is not None
         assert retrieved.show_id == 1
-        assert retrieved.name == 'Test Show'
+        assert retrieved.name == "Test Show"
         assert retrieved.genres is None
         assert retrieved.summary is None
         assert retrieved.rating is None
@@ -55,12 +59,12 @@ class TestShowMetadata:
     def test_show_metadata_primary_key_uniqueness(self, test_db_session):
         """Test that show_id is a unique primary key."""
         # Arrange
-        show1 = ShowMetadata(show_id=1, name='Show 1')
+        show1 = ShowMetadata(show_id=1, name="Show 1")
         test_db_session.add(show1)
         test_db_session.commit()
 
         # Act & Assert
-        show2 = ShowMetadata(show_id=1, name='Show 2')
+        show2 = ShowMetadata(show_id=1, name="Show 2")
         test_db_session.add(show2)
 
         with pytest.warns(match="conflicts with persistent instance"):
@@ -70,20 +74,20 @@ class TestShowMetadata:
     def test_show_metadata_repr(self):
         """Test __repr__ method."""
         # Arrange
-        show = ShowMetadata(show_id=42, name='Test Show')
+        show = ShowMetadata(show_id=42, name="Test Show")
 
         # Act
         repr_str = repr(show)
 
         # Assert
-        assert 'ShowMetadata' in repr_str
-        assert 'show_id=42' in repr_str
-        assert 'Test Show' in repr_str
+        assert "ShowMetadata" in repr_str
+        assert "show_id=42" in repr_str
+        assert "Test Show" in repr_str
 
     def test_show_metadata_synced_at_default(self, test_db_session):
         """Test that synced_at has a default value."""
         # Arrange & Act
-        show = ShowMetadata(show_id=1, name='Test')
+        show = ShowMetadata(show_id=1, name="Test")
         test_db_session.add(show)
         test_db_session.commit()
 
@@ -98,7 +102,7 @@ class TestShowMetadata:
     def test_show_metadata_with_empty_genres_list(self, test_db_session):
         """Test ShowMetadata with empty genres list."""
         # Arrange & Act
-        show = ShowMetadata(show_id=1, name='Show', genres=[])
+        show = ShowMetadata(show_id=1, name="Show", genres=[])
         test_db_session.add(show)
         test_db_session.commit()
 
@@ -109,8 +113,8 @@ class TestShowMetadata:
     def test_show_metadata_with_multiple_genres(self, test_db_session):
         """Test ShowMetadata with multiple genres."""
         # Arrange & Act
-        genres = ['Drama', 'Crime', 'Thriller', 'Mystery', 'Suspense']
-        show = ShowMetadata(show_id=1, name='Show', genres=genres)
+        genres = ["Drama", "Crime", "Thriller", "Mystery", "Suspense"]
+        show = ShowMetadata(show_id=1, name="Show", genres=genres)
         test_db_session.add(show)
         test_db_session.commit()
 
@@ -121,8 +125,8 @@ class TestShowMetadata:
     def test_show_metadata_with_long_summary(self, test_db_session):
         """Test ShowMetadata with long summary text."""
         # Arrange
-        long_summary = 'A' * 5000  # Very long summary
-        show = ShowMetadata(show_id=1, name='Show', summary=long_summary)
+        long_summary = "A" * 5000  # Very long summary
+        show = ShowMetadata(show_id=1, name="Show", summary=long_summary)
 
         # Act
         test_db_session.add(show)
@@ -137,13 +141,13 @@ class TestShowMetadata:
         # Arrange & Act
         show = ShowMetadata(
             show_id=1,
-            name='Show',
+            name="Show",
             genres=None,
             summary=None,
             rating=None,
             type=None,
             language=None,
-            network=None
+            network=None,
         )
         test_db_session.add(show)
         test_db_session.commit()
@@ -160,26 +164,26 @@ class TestShowMetadata:
     def test_show_metadata_update(self, test_db_session):
         """Test updating an existing ShowMetadata record."""
         # Arrange
-        show = ShowMetadata(show_id=1, name='Original Name', rating=7.5)
+        show = ShowMetadata(show_id=1, name="Original Name", rating=7.5)
         test_db_session.add(show)
         test_db_session.commit()
 
         # Act
-        show.name = 'Updated Name'
+        show.name = "Updated Name"
         show.rating = 8.5
-        show.summary = 'New summary'
+        show.summary = "New summary"
         test_db_session.commit()
 
         # Assert
         retrieved = test_db_session.query(ShowMetadata).filter_by(show_id=1).first()
-        assert retrieved.name == 'Updated Name'
+        assert retrieved.name == "Updated Name"
         assert retrieved.rating == 8.5
-        assert retrieved.summary == 'New summary'
+        assert retrieved.summary == "New summary"
 
     def test_show_metadata_delete(self, test_db_session):
         """Test deleting a ShowMetadata record."""
         # Arrange
-        show = ShowMetadata(show_id=1, name='Test Show')
+        show = ShowMetadata(show_id=1, name="Test Show")
         test_db_session.add(show)
         test_db_session.commit()
 
@@ -194,13 +198,13 @@ class TestShowMetadata:
     def test_show_metadata_query_by_name(self, test_db_session):
         """Test querying ShowMetadata by name."""
         # Arrange
-        show1 = ShowMetadata(show_id=1, name='Breaking Bad')
-        show2 = ShowMetadata(show_id=2, name='Better Call Saul')
+        show1 = ShowMetadata(show_id=1, name="Breaking Bad")
+        show2 = ShowMetadata(show_id=2, name="Better Call Saul")
         test_db_session.add_all([show1, show2])
         test_db_session.commit()
 
         # Act
-        retrieved = test_db_session.query(ShowMetadata).filter_by(name='Breaking Bad').first()
+        retrieved = test_db_session.query(ShowMetadata).filter_by(name="Breaking Bad").first()
 
         # Assert
         assert retrieved is not None
@@ -210,9 +214,9 @@ class TestShowMetadata:
         """Test counting ShowMetadata records."""
         # Arrange
         shows = [
-            ShowMetadata(show_id=1, name='Show 1'),
-            ShowMetadata(show_id=2, name='Show 2'),
-            ShowMetadata(show_id=3, name='Show 3')
+            ShowMetadata(show_id=1, name="Show 1"),
+            ShowMetadata(show_id=2, name="Show 2"),
+            ShowMetadata(show_id=3, name="Show 3"),
         ]
         test_db_session.add_all(shows)
         test_db_session.commit()

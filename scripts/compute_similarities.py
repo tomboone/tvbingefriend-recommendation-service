@@ -10,17 +10,17 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-import logging
-import numpy as np
 import argparse
+import logging
+
+import numpy as np
 from scipy.sparse import load_npz
 
 from tvbingefriend_recommendation_service.ml.similarity_computer import SimilarityComputer
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 logger = logging.getLogger(__name__)
@@ -36,16 +36,16 @@ def load_features(input_dir: Path) -> dict:
     Returns:
         Dictionary with feature arrays
     """
-    logger.info("="*70)
+    logger.info("=" * 70)
     logger.info("LOADING FEATURES")
-    logger.info("="*70)
+    logger.info("=" * 70)
 
     required_files = [
-        'genre_features.npy',
-        'text_features.npz',
-        'platform_features.npy',
-        'type_features.npy',
-        'language_features.npy'
+        "genre_features.npy",
+        "text_features.npz",
+        "platform_features.npy",
+        "type_features.npy",
+        "language_features.npy",
     ]
 
     # Check all files exist
@@ -53,32 +53,31 @@ def load_features(input_dir: Path) -> dict:
         filepath = input_dir / filename
         if not filepath.exists():
             raise FileNotFoundError(
-                f"Feature file not found: {filepath}\n"
-                "Run compute_features.py first."
+                f"Feature file not found: {filepath}\n" "Run compute_features.py first."
             )
 
     # Load features
-    genre_features = np.load(input_dir / 'genre_features.npy')
+    genre_features = np.load(input_dir / "genre_features.npy")
     logger.info(f"✓ Loaded genre_features: {genre_features.shape}")
 
-    text_features = load_npz(input_dir / 'text_features.npz')
+    text_features = load_npz(input_dir / "text_features.npz")
     logger.info(f"✓ Loaded text_features: {text_features.shape}")
 
-    platform_features = np.load(input_dir / 'platform_features.npy')
+    platform_features = np.load(input_dir / "platform_features.npy")
     logger.info(f"✓ Loaded platform_features: {platform_features.shape}")
 
-    type_features = np.load(input_dir / 'type_features.npy')
+    type_features = np.load(input_dir / "type_features.npy")
     logger.info(f"✓ Loaded type_features: {type_features.shape}")
 
-    language_features = np.load(input_dir / 'language_features.npy')
+    language_features = np.load(input_dir / "language_features.npy")
     logger.info(f"✓ Loaded language_features: {language_features.shape}")
 
     return {
-        'genre_features': genre_features,
-        'text_features': text_features,
-        'platform_features': platform_features,
-        'type_features': type_features,
-        'language_features': language_features
+        "genre_features": genre_features,
+        "text_features": text_features,
+        "platform_features": platform_features,
+        "type_features": type_features,
+        "language_features": language_features,
     }
 
 
@@ -86,7 +85,7 @@ def compute_similarities(
     features: dict,
     genre_weight: float = 0.4,
     text_weight: float = 0.5,
-    metadata_weight: float = 0.1
+    metadata_weight: float = 0.1,
 ) -> dict:
     """
     Compute all similarity matrices.
@@ -100,26 +99,29 @@ def compute_similarities(
     Returns:
         Dictionary with similarity matrices
     """
-    logger.info("="*70)
+    logger.info("=" * 70)
     logger.info("COMPUTING SIMILARITIES")
-    logger.info("="*70)
+    logger.info("=" * 70)
 
     # Initialize similarity computer
     computer = SimilarityComputer(
-        genre_weight=genre_weight,
-        text_weight=text_weight,
-        metadata_weight=metadata_weight
+        genre_weight=genre_weight, text_weight=text_weight, metadata_weight=metadata_weight
     )
 
     # Compute all similarities
     similarities = computer.compute_all_similarities(features)
 
     # Log statistics for each similarity type
-    logger.info("\n" + "="*70)
+    logger.info("\n" + "=" * 70)
     logger.info("SIMILARITY STATISTICS")
-    logger.info("="*70)
+    logger.info("=" * 70)
 
-    for sim_name in ['genre_similarity', 'text_similarity', 'metadata_similarity', 'hybrid_similarity']:
+    for sim_name in [
+        "genre_similarity",
+        "text_similarity",
+        "metadata_similarity",
+        "hybrid_similarity",
+    ]:
         stats = computer.get_similarity_statistics(similarities[sim_name])
         logger.info(f"\n{sim_name}:")
         logger.info(f"  Mean: {stats['mean']:.4f}")
@@ -143,9 +145,9 @@ def save_similarities(similarities: dict, output_dir: Path, save_to_disk: bool =
         output_dir: Output directory
         save_to_disk: If True, save full matrices (for analysis/debugging only)
     """
-    logger.info("\n" + "="*70)
+    logger.info("\n" + "=" * 70)
     logger.info("SIMILARITY STORAGE")
-    logger.info("="*70)
+    logger.info("=" * 70)
 
     if not save_to_disk:
         logger.info("⊘ Skipping similarity matrix storage (storage optimization)")
@@ -163,16 +165,13 @@ def save_similarities(similarities: dict, output_dir: Path, save_to_disk: bool =
 
     # Save each similarity matrix
     for name, matrix in similarities.items():
-        output_path = output_dir / f'{name}.npy'
+        output_path = output_dir / f"{name}.npy"
         np.save(output_path, matrix)
         file_size = output_path.stat().st_size / 1024 / 1024
         logger.info(f"✓ Saved {name}.npy ({file_size:.2f} MB)")
 
     # Calculate total size
-    total_size = sum(
-        (output_dir / f'{name}.npy').stat().st_size
-        for name in similarities.keys()
-    )
+    total_size = sum((output_dir / f"{name}.npy").stat().st_size for name in similarities.keys())
 
     logger.info(f"\n✓ All similarities saved to {output_dir}")
     logger.info(f"  Total size: {total_size / 1024 / 1024:.2f} MB")
@@ -181,42 +180,36 @@ def save_similarities(similarities: dict, output_dir: Path, save_to_disk: bool =
 def main():
     """Main execution function."""
     parser = argparse.ArgumentParser(
-        description='Compute similarity matrices from feature matrices'
+        description="Compute similarity matrices from feature matrices"
     )
     parser.add_argument(
-        '--input-dir',
+        "--input-dir",
         type=str,
-        default='data/processed',
-        help='Input directory with feature matrices (default: data/processed)'
+        default="data/processed",
+        help="Input directory with feature matrices (default: data/processed)",
     )
     parser.add_argument(
-        '--output-dir',
+        "--output-dir",
         type=str,
-        default='data/processed',
-        help='Output directory for similarities (default: data/processed)'
+        default="data/processed",
+        help="Output directory for similarities (default: data/processed)",
     )
     parser.add_argument(
-        '--genre-weight',
-        type=float,
-        default=0.4,
-        help='Weight for genre similarity (default: 0.4)'
+        "--genre-weight", type=float, default=0.4, help="Weight for genre similarity (default: 0.4)"
     )
     parser.add_argument(
-        '--text-weight',
-        type=float,
-        default=0.5,
-        help='Weight for text similarity (default: 0.5)'
+        "--text-weight", type=float, default=0.5, help="Weight for text similarity (default: 0.5)"
     )
     parser.add_argument(
-        '--metadata-weight',
+        "--metadata-weight",
         type=float,
         default=0.1,
-        help='Weight for metadata similarity (default: 0.1)'
+        help="Weight for metadata similarity (default: 0.1)",
     )
     parser.add_argument(
-        '--save-similarities',
-        action='store_true',
-        help='Save full similarity matrices to disk (not recommended for production, large storage)'
+        "--save-similarities",
+        action="store_true",
+        help="Save full similarity matrices to disk (not recommended for production, large storage)",
     )
 
     args = parser.parse_args()
@@ -231,16 +224,16 @@ def main():
     input_dir = project_root / args.input_dir
     output_dir = project_root / args.output_dir
 
-    logger.info("="*70)
+    logger.info("=" * 70)
     logger.info("SIMILARITY COMPUTATION - PRODUCTION")
-    logger.info("="*70)
+    logger.info("=" * 70)
     logger.info(f"Input directory: {input_dir}")
     logger.info(f"Output directory: {output_dir}")
     logger.info(f"Genre weight: {args.genre_weight}")
     logger.info(f"Text weight: {args.text_weight}")
     logger.info(f"Metadata weight: {args.metadata_weight}")
     logger.info(f"Save to disk: {args.save_similarities}")
-    logger.info("="*70)
+    logger.info("=" * 70)
 
     try:
         # Step 1: Load features
@@ -251,15 +244,15 @@ def main():
             features=features,
             genre_weight=args.genre_weight,
             text_weight=args.text_weight,
-            metadata_weight=args.metadata_weight
+            metadata_weight=args.metadata_weight,
         )
 
         # Step 3: Save similarities (optional, disabled by default for production)
         save_similarities(similarities, output_dir, save_to_disk=args.save_similarities)
 
-        logger.info("\n" + "="*70)
+        logger.info("\n" + "=" * 70)
         logger.info("✓ SIMILARITY COMPUTATION COMPLETE")
-        logger.info("="*70)
+        logger.info("=" * 70)
 
         # Return similarities for use by populate_database script
         return similarities
@@ -269,5 +262,5 @@ def main():
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

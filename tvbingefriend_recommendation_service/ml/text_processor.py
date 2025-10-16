@@ -1,7 +1,8 @@
 """Text processing utilities for TV show descriptions."""
+
 import re
+
 import pandas as pd
-from typing import List, Optional
 
 
 def clean_html(text: str | None) -> str:
@@ -18,15 +19,15 @@ def clean_html(text: str | None) -> str:
         return ""
 
     # Remove HTML tags
-    text = re.sub(r'<[^>]+>', '', str(text))
+    text = re.sub(r"<[^>]+>", "", str(text))
 
     # Remove extra whitespace
-    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r"\s+", " ", text)
 
     return text.strip()
 
 
-def clean_texts(texts: List[Optional[str]]) -> List[str]:
+def clean_texts(texts: list[str | None]) -> list[str]:
     """
     Clean a list of texts by removing HTML tags.
 
@@ -39,10 +40,7 @@ def clean_texts(texts: List[Optional[str]]) -> List[str]:
     return [clean_html(text) for text in texts]
 
 
-def combine_text_features(
-    summary: str,
-    season_summaries: Optional[List[str]] = None
-) -> str:
+def combine_text_features(summary: str, season_summaries: list[str] | None = None) -> str:
     """
     Combine show summary with season summaries into a single text.
 

@@ -129,7 +129,7 @@ jobs:
         run: |
           APP_NAME=$(terraform output -raw function_app_name)
           PYTHON_VERSION=$(terraform output -raw function_app_python_version)
-          
+
           echo "function_app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
           echo "function_app_python_version=$PYTHON_VERSION" >> "$GITHUB_OUTPUT"
 

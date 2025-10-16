@@ -10,25 +10,24 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-import logging
-import pandas as pd
 import argparse
-from tvbingefriend_recommendation_service.services.data_loader_service import ShowDataLoader
+import logging
+
+import pandas as pd
+
 from tvbingefriend_recommendation_service.ml.text_processor import clean_html
+from tvbingefriend_recommendation_service.services.data_loader_service import ShowDataLoader
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 logger = logging.getLogger(__name__)
 
 
 def fetch_all_shows(
-    show_service_url: str = None,
-    batch_size: int = 1000,
-    max_shows: int = None
+    show_service_url: str = None, batch_size: int = 1000, max_shows: int = None
 ) -> pd.DataFrame:
     """
     Fetch all shows from the API and prepare as DataFrame.
@@ -41,9 +40,9 @@ def fetch_all_shows(
     Returns:
         DataFrame with all shows
     """
-    logger.info("="*70)
+    logger.info("=" * 70)
     logger.info("FETCHING TV SHOW DATA")
-    logger.info("="*70)
+    logger.info("=" * 70)
 
     # Initialize data loader
     loader = ShowDataLoader(show_service_url=show_service_url)
@@ -72,35 +71,43 @@ def prepare_show_data(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         Cleaned DataFrame with essential columns
     """
-    logger.info("="*70)
+    logger.info("=" * 70)
     logger.info("PREPARING SHOW DATA")
-    logger.info("="*70)
+    logger.info("=" * 70)
 
     # Extract nested fields
     logger.info("Extracting nested fields...")
 
     # Rating
-    df['rating_avg'] = df['rating'].apply(
-        lambda x: x.get('average') if isinstance(x, dict) else None
+    df["rating_avg"] = df["rating"].apply(
+        lambda x: x.get("average") if isinstance(x, dict) else None
     )
 
     # Network/Platform
-    df['network_name'] = df['network'].apply(
-        lambda x: x.get('name') if isinstance(x, dict) else None
+    df["network_name"] = df["network"].apply(
+        lambda x: x.get("name") if isinstance(x, dict) else None
     )
-    df['webchannel_name'] = df['webchannel'].apply(
-        lambda x: x.get('name') if isinstance(x, dict) else None
+    df["webchannel_name"] = df["webchannel"].apply(
+        lambda x: x.get("name") if isinstance(x, dict) else None
     )
-    df['platform'] = df['network_name'].fillna(df['webchannel_name'])
+    df["platform"] = df["network_name"].fillna(df["webchannel_name"])
 
     # Clean summary text
     logger.info("Cleaning summary text...")
-    df['summary_clean'] = df['summary'].apply(clean_html)
+    df["summary_clean"] = df["summary"].apply(clean_html)
 
     # Select essential columns
     essential_columns = [
-        'id', 'name', 'genres', 'summary', 'summary_clean',
-        'type', 'language', 'status', 'platform', 'rating_avg'
+        "id",
+        "name",
+        "genres",
+        "summary",
+        "summary_clean",
+        "type",
+        "language",
+        "status",
+        "platform",
+        "rating_avg",
     ]
 
     df_clean = df[essential_columns].copy()
@@ -109,19 +116,31 @@ def prepare_show_data(df: pd.DataFrame) -> pd.DataFrame:
     logger.info(f"Cleaned DataFrame columns: {df_clean.columns.tolist()}")
 
     # Data quality report
-    logger.info("\n" + "="*70)
+    logger.info("\n" + "=" * 70)
     logger.info("DATA QUALITY REPORT")
-    logger.info("="*70)
+    logger.info("=" * 70)
     logger.info(f"Total shows: {len(df_clean)}")
 
     if len(df_clean) > 0:
-        logger.info(f"\nFeature availability:")
-        logger.info(f"  Genres: {(df_clean['genres'].apply(len) > 0).sum()} shows ({(df_clean['genres'].apply(len) > 0).sum()/len(df_clean)*100:.1f}%)")
-        logger.info(f"  Summaries: {(df_clean['summary_clean'].str.len() > 0).sum()} shows ({(df_clean['summary_clean'].str.len() > 0).sum()/len(df_clean)*100:.1f}%)")
-        logger.info(f"  Ratings: {df_clean['rating_avg'].notna().sum()} shows ({df_clean['rating_avg'].notna().sum()/len(df_clean)*100:.1f}%)")
-        logger.info(f"  Platform: {df_clean['platform'].notna().sum()} shows ({df_clean['platform'].notna().sum()/len(df_clean)*100:.1f}%)")
-        logger.info(f"  Type: {df_clean['type'].notna().sum()} shows ({df_clean['type'].notna().sum()/len(df_clean)*100:.1f}%)")
-        logger.info(f"  Language: {df_clean['language'].notna().sum()} shows ({df_clean['language'].notna().sum()/len(df_clean)*100:.1f}%)")
+        logger.info("\nFeature availability:")
+        logger.info(
+            f"  Genres: {(df_clean['genres'].apply(len) > 0).sum()} shows ({(df_clean['genres'].apply(len) > 0).sum()/len(df_clean)*100:.1f}%)"
+        )
+        logger.info(
+            f"  Summaries: {(df_clean['summary_clean'].str.len() > 0).sum()} shows ({(df_clean['summary_clean'].str.len() > 0).sum()/len(df_clean)*100:.1f}%)"
+        )
+        logger.info(
+            f"  Ratings: {df_clean['rating_avg'].notna().sum()} shows ({df_clean['rating_avg'].notna().sum()/len(df_clean)*100:.1f}%)"
+        )
+        logger.info(
+            f"  Platform: {df_clean['platform'].notna().sum()} shows ({df_clean['platform'].notna().sum()/len(df_clean)*100:.1f}%)"
+        )
+        logger.info(
+            f"  Type: {df_clean['type'].notna().sum()} shows ({df_clean['type'].notna().sum()/len(df_clean)*100:.1f}%)"
+        )
+        logger.info(
+            f"  Language: {df_clean['language'].notna().sum()} shows ({df_clean['language'].notna().sum()/len(df_clean)*100:.1f}%)"
+        )
     else:
         logger.warning("No shows to report on")
 
@@ -136,15 +155,15 @@ def save_prepared_data(df: pd.DataFrame, output_dir: Path):
         df: Prepared DataFrame
         output_dir: Output directory
     """
-    logger.info("="*70)
+    logger.info("=" * 70)
     logger.info("SAVING PREPARED DATA")
-    logger.info("="*70)
+    logger.info("=" * 70)
 
     # Create output directory
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Save to CSV
-    output_path = output_dir / 'shows_metadata.csv'
+    output_path = output_dir / "shows_metadata.csv"
     df.to_csv(output_path, index=False)
 
     logger.info(f"✓ Saved {len(df)} shows to {output_path}")
@@ -153,32 +172,24 @@ def save_prepared_data(df: pd.DataFrame, output_dir: Path):
 
 def main():
     """Main execution function."""
-    parser = argparse.ArgumentParser(
-        description='Fetch and prepare TV show data from API'
-    )
+    parser = argparse.ArgumentParser(description="Fetch and prepare TV show data from API")
     parser.add_argument(
-        '--output-dir',
+        "--output-dir",
         type=str,
-        default='data/processed',
-        help='Output directory for prepared data (default: data/processed)'
+        default="data/processed",
+        help="Output directory for prepared data (default: data/processed)",
     )
     parser.add_argument(
-        '--show-service-url',
-        type=str,
-        default=None,
-        help='Show service URL (default: from config)'
+        "--show-service-url", type=str, default=None, help="Show service URL (default: from config)"
     )
     parser.add_argument(
-        '--batch-size',
-        type=int,
-        default=1000,
-        help='Batch size for fetching shows (default: 1000)'
+        "--batch-size", type=int, default=1000, help="Batch size for fetching shows (default: 1000)"
     )
     parser.add_argument(
-        '--max-shows',
+        "--max-shows",
         type=int,
         default=None,
-        help='Maximum number of shows to fetch (default: None = all shows)'
+        help="Maximum number of shows to fetch (default: None = all shows)",
     )
 
     args = parser.parse_args()
@@ -186,21 +197,21 @@ def main():
     # Set up paths
     output_dir = project_root / args.output_dir
 
-    logger.info("="*70)
+    logger.info("=" * 70)
     logger.info("FETCH AND PREPARE DATA - PRODUCTION")
-    logger.info("="*70)
+    logger.info("=" * 70)
     logger.info(f"Output directory: {output_dir}")
     logger.info(f"Show service URL: {args.show_service_url or 'from config'}")
     logger.info(f"Batch size: {args.batch_size}")
     logger.info(f"Max shows: {args.max_shows or 'ALL'}")
-    logger.info("="*70)
+    logger.info("=" * 70)
 
     try:
         # Step 1: Fetch all shows
         df_raw = fetch_all_shows(
             show_service_url=args.show_service_url,
             batch_size=args.batch_size,
-            max_shows=args.max_shows
+            max_shows=args.max_shows,
         )
 
         # Step 2: Prepare data
@@ -209,9 +220,9 @@ def main():
         # Step 3: Save prepared data
         save_prepared_data(df_prepared, output_dir)
 
-        logger.info("\n" + "="*70)
+        logger.info("\n" + "=" * 70)
         logger.info("✓ DATA PREPARATION COMPLETE")
-        logger.info("="*70)
+        logger.info("=" * 70)
         logger.info(f"Prepared {len(df_prepared)} shows")
         logger.info(f"Output: {output_dir / 'shows_metadata.csv'}")
 
@@ -220,5 +231,5 @@ def main():
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
