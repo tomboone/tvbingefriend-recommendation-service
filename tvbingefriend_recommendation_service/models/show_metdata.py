@@ -1,6 +1,5 @@
 """Cached show metadata for quick access"""
-from sqlalchemy import Column, Integer, Float, DateTime, String, Text
-from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy import Column, Integer, Float, DateTime, String, Text, JSON
 from datetime import datetime, UTC
 
 from tvbingefriend_recommendation_service.models.base import Base

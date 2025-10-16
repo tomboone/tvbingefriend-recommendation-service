@@ -258,13 +258,13 @@ def compute_and_store_similarities(
         db.close()
 
 
-def test_recommendations(
+def verify_recommendations(
     service: ContentBasedRecommendationService,
     metadata_path: Path,
     num_tests: int = 3
 ):
     """
-    Test recommendations for a few shows.
+    Verify recommendations for a few shows.
 
     Args:
         service: Recommendation service instance
@@ -394,9 +394,9 @@ def main():
             min_similarity=args.min_similarity
         )
 
-        # Step 3: Test recommendations (optional)
+        # Step 3: Verify recommendations (optional)
         if not args.skip_test:
-            test_recommendations(
+            verify_recommendations(
                 service=service,
                 metadata_path=input_dir / 'shows_metadata.csv',
                 num_tests=3

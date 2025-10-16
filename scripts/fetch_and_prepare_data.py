@@ -113,13 +113,17 @@ def prepare_show_data(df: pd.DataFrame) -> pd.DataFrame:
     logger.info("DATA QUALITY REPORT")
     logger.info("="*70)
     logger.info(f"Total shows: {len(df_clean)}")
-    logger.info(f"\nFeature availability:")
-    logger.info(f"  Genres: {(df_clean['genres'].apply(len) > 0).sum()} shows ({(df_clean['genres'].apply(len) > 0).sum()/len(df_clean)*100:.1f}%)")
-    logger.info(f"  Summaries: {(df_clean['summary_clean'].str.len() > 0).sum()} shows ({(df_clean['summary_clean'].str.len() > 0).sum()/len(df_clean)*100:.1f}%)")
-    logger.info(f"  Ratings: {df_clean['rating_avg'].notna().sum()} shows ({df_clean['rating_avg'].notna().sum()/len(df_clean)*100:.1f}%)")
-    logger.info(f"  Platform: {df_clean['platform'].notna().sum()} shows ({df_clean['platform'].notna().sum()/len(df_clean)*100:.1f}%)")
-    logger.info(f"  Type: {df_clean['type'].notna().sum()} shows ({df_clean['type'].notna().sum()/len(df_clean)*100:.1f}%)")
-    logger.info(f"  Language: {df_clean['language'].notna().sum()} shows ({df_clean['language'].notna().sum()/len(df_clean)*100:.1f}%)")
+
+    if len(df_clean) > 0:
+        logger.info(f"\nFeature availability:")
+        logger.info(f"  Genres: {(df_clean['genres'].apply(len) > 0).sum()} shows ({(df_clean['genres'].apply(len) > 0).sum()/len(df_clean)*100:.1f}%)")
+        logger.info(f"  Summaries: {(df_clean['summary_clean'].str.len() > 0).sum()} shows ({(df_clean['summary_clean'].str.len() > 0).sum()/len(df_clean)*100:.1f}%)")
+        logger.info(f"  Ratings: {df_clean['rating_avg'].notna().sum()} shows ({df_clean['rating_avg'].notna().sum()/len(df_clean)*100:.1f}%)")
+        logger.info(f"  Platform: {df_clean['platform'].notna().sum()} shows ({df_clean['platform'].notna().sum()/len(df_clean)*100:.1f}%)")
+        logger.info(f"  Type: {df_clean['type'].notna().sum()} shows ({df_clean['type'].notna().sum()/len(df_clean)*100:.1f}%)")
+        logger.info(f"  Language: {df_clean['language'].notna().sum()} shows ({df_clean['language'].notna().sum()/len(df_clean)*100:.1f}%)")
+    else:
+        logger.warning("No shows to report on")
 
     return df_clean
 
