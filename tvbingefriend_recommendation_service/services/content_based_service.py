@@ -1,19 +1,21 @@
 """Service for content-based TV show recommendations."""
-import math
-from typing import List, Dict, Optional, cast
-from pathlib import Path
-import numpy as np
-import logging
-import tempfile
 
-from tvbingefriend_recommendation_service.repos import SimilarityRepository, MetadataRepository
-from tvbingefriend_recommendation_service.models.database import SessionLocal
-from tvbingefriend_recommendation_service.storage import BlobStorageClient
+import logging
+import math
+import tempfile
+from pathlib import Path
+from typing import cast
+
+import numpy as np
+
 from tvbingefriend_recommendation_service.config import (
-    use_blob_storage,
     get_azure_storage_connection_string,
-    get_storage_container_name
+    get_storage_container_name,
+    use_blob_storage,
 )
+from tvbingefriend_recommendation_service.models.database import SessionLocal
+from tvbingefriend_recommendation_service.repos import MetadataRepository, SimilarityRepository
+from tvbingefriend_recommendation_service.storage import BlobStorageClient
 
 logger = logging.getLogger(__name__)
 
@@ -26,13 +28,13 @@ class ContentBasedRecommendationService:
     """
 
     def __init__(
-            self,
-            processed_data_dir: Optional[Path] = None,
-            genre_weight: float = 0.4,
-            text_weight: float = 0.5,
-            metadata_weight: float = 0.1,
-            use_blob: Optional[bool] = None,
-            blob_prefix: str = "processed"
+        self,
+        processed_data_dir: Path | None = None,
+        genre_weight: float = 0.4,
+        text_weight: float = 0.5,
+        metadata_weight: float = 0.1,
+        use_blob: bool | None = None,
+        blob_prefix: str = "processed",
     ):
         """
         Initialize the recommendation service.
@@ -48,7 +50,7 @@ class ContentBasedRecommendationService:
         if processed_data_dir is None:
             # Default to data/processed in project root
             project_root = Path(__file__).resolve().parent.parent.parent
-            processed_data_dir = project_root / 'data' / 'processed'
+            processed_data_dir = project_root / "data" / "processed"
 
         self.processed_data_dir = Path(processed_data_dir)
         self.genre_weight = genre_weight
@@ -63,29 +65,30 @@ class ContentBasedRecommendationService:
             self.use_blob = use_blob
 
         # Initialize blob client if needed
-        self.blob_client: Optional[BlobStorageClient] = None
+        self.blob_client: BlobStorageClient | None = None
         if self.use_blob:
             conn_str = get_azure_storage_connection_string()
             container = get_storage_container_name()
             self.blob_client = BlobStorageClient(
-                connection_string=conn_str,
-                container_name=container
+                connection_string=conn_str, container_name=container
             )
             logger.info(f"Using blob storage (container: {container}, prefix: {blob_prefix})")
         else:
             logger.info(f"Using local storage: {self.processed_data_dir}")
 
         # Lazy-load similarity matrices
-        self._genre_similarity: Optional[np.ndarray] = None
-        self._text_similarity: Optional[np.ndarray] = None
-        self._metadata_similarity: Optional[np.ndarray] = None
-        self._hybrid_similarity: Optional[np.ndarray] = None
-        self._show_id_to_index: Optional[Dict[int, int]] = None
-        self._index_to_show_id: Optional[Dict[int, int]] = None
-        self._temp_dir: Optional[Path] = None  # For blob downloads
+        self._genre_similarity: np.ndarray | None = None
+        self._text_similarity: np.ndarray | None = None
+        self._metadata_similarity: np.ndarray | None = None
+        self._hybrid_similarity: np.ndarray | None = None
+        self._show_id_to_index: dict[int, int] | None = None
+        self._index_to_show_id: dict[int, int] | None = None
+        self._temp_dir: Path | None = None  # For blob downloads
 
         logger.info("Initialized ContentBasedRecommendationService")
-        logger.info(f"Weights - Genre: {genre_weight}, Text: {text_weight}, Metadata: {metadata_weight}")
+        logger.info(
+            f"Weights - Genre: {genre_weight}, Text: {text_weight}, Metadata: {metadata_weight}"
+        )
 
     def _get_data_dir(self) -> Path:
         """Get the directory containing data files (download from blob if needed)."""
@@ -102,8 +105,7 @@ class ContentBasedRecommendationService:
                 raise RuntimeError("Blob client not initialized but use_blob is True")
 
             self.blob_client.download_directory(
-                blob_prefix=self.blob_prefix,
-                local_dir=self._temp_dir
+                blob_prefix=self.blob_prefix, local_dir=self._temp_dir
             )
 
         return self._temp_dir
@@ -119,22 +121,20 @@ class ContentBasedRecommendationService:
         data_dir = self._get_data_dir()
 
         # Load individual similarity matrices
-        self._genre_similarity = np.load(
-            data_dir / 'genre_similarity.npy'
-        )
-        self._text_similarity = np.load(
-            data_dir / 'text_similarity.npy'
-        )
-        self._metadata_similarity = np.load(
-            data_dir / 'metadata_similarity.npy'
-        )
+        genre_sim = np.load(data_dir / "genre_similarity.npy")
+        text_sim = np.load(data_dir / "text_similarity.npy")
+        metadata_sim = np.load(data_dir / "metadata_similarity.npy")
+
+        self._genre_similarity = genre_sim
+        self._text_similarity = text_sim
+        self._metadata_similarity = metadata_sim
 
         # Compute weighted hybrid similarity
         total_weight = self.genre_weight + self.text_weight + self.metadata_weight
         self._hybrid_similarity = (
-                (self.genre_weight / total_weight) * self._genre_similarity +
-                (self.text_weight / total_weight) * self._text_similarity +
-                (self.metadata_weight / total_weight) * self._metadata_similarity
+            (self.genre_weight / total_weight) * genre_sim
+            + (self.text_weight / total_weight) * text_sim
+            + (self.metadata_weight / total_weight) * metadata_sim
         )
 
         logger.info(f"✓ Loaded similarity matrices: {self._hybrid_similarity.shape}")
@@ -150,26 +150,17 @@ class ContentBasedRecommendationService:
         data_dir = self._get_data_dir()
 
         # Load show metadata
-        metadata_df = pd.read_csv(data_dir / 'shows_metadata.csv')
+        metadata_df = pd.read_csv(data_dir / "shows_metadata.csv")
 
         # Create mappings
-        self._show_id_to_index = {
-            show_id: idx
-            for idx, show_id in enumerate(metadata_df['id'])
-        }
-        self._index_to_show_id = {
-            idx: show_id
-            for show_id, idx in self._show_id_to_index.items()
-        }
+        self._show_id_to_index = {show_id: idx for idx, show_id in enumerate(metadata_df["id"])}
+        self._index_to_show_id = {idx: show_id for show_id, idx in self._show_id_to_index.items()}
 
         logger.info(f"✓ Loaded mappings for {len(self._show_id_to_index)} shows")
 
     def get_recommendations_from_matrix(
-            self,
-            show_id: int,
-            n: int = 10,
-            min_similarity: float = 0.0
-    ) -> List[Dict]:
+        self, show_id: int, n: int = 10, min_similarity: float = 0.0
+    ) -> list[dict]:
         """
         Get recommendations directly from similarity matrix (no database).
 
@@ -187,9 +178,12 @@ class ContentBasedRecommendationService:
 
         # Type check for mypy
         if (
-                self._show_id_to_index is None or self._index_to_show_id is None or
-                self._hybrid_similarity is None or self._genre_similarity is None or
-                self._text_similarity is None or self._metadata_similarity is None
+            self._show_id_to_index is None
+            or self._index_to_show_id is None
+            or self._hybrid_similarity is None
+            or self._genre_similarity is None
+            or self._text_similarity is None
+            or self._metadata_similarity is None
         ):
             raise RuntimeError("Similarity matrices not loaded")
 
@@ -198,8 +192,8 @@ class ContentBasedRecommendationService:
         genre_similarity = cast(np.ndarray, self._genre_similarity)
         text_similarity = cast(np.ndarray, self._text_similarity)
         metadata_similarity = cast(np.ndarray, self._metadata_similarity)
-        show_id_to_index = cast(Dict[int, int], self._show_id_to_index)
-        index_to_show_id = cast(Dict[int, int], self._index_to_show_id)
+        show_id_to_index = cast(dict[int, int], self._show_id_to_index)
+        index_to_show_id = cast(dict[int, int], self._index_to_show_id)
 
         # Get matrix index for this show
         if show_id not in show_id_to_index:
@@ -226,13 +220,15 @@ class ContentBasedRecommendationService:
             if similarity_score < min_similarity:
                 break  # Scores are sorted, so we can break early
 
-            recommendations.append({
-                'show_id': similar_show_id,
-                'similarity_score': similarity_score,
-                'genre_score': float(genre_similarity[show_idx, idx]),
-                'text_score': float(text_similarity[show_idx, idx]),
-                'metadata_score': float(metadata_similarity[show_idx, idx])
-            })
+            recommendations.append(
+                {
+                    "show_id": similar_show_id,
+                    "similarity_score": similarity_score,
+                    "genre_score": float(genre_similarity[show_idx, idx]),
+                    "text_score": float(text_similarity[show_idx, idx]),
+                    "metadata_score": float(metadata_similarity[show_idx, idx]),
+                }
+            )
 
             if len(recommendations) >= n:
                 break
@@ -240,11 +236,8 @@ class ContentBasedRecommendationService:
         return recommendations
 
     def get_recommendations_from_db(
-            self,
-            show_id: int,
-            n: int = 10,
-            min_similarity: float = 0.0
-    ) -> List[Dict]:
+        self, show_id: int, n: int = 10, min_similarity: float = 0.0
+    ) -> list[dict]:
         """
         Get recommendations from database (pre-computed and stored).
 
@@ -260,19 +253,15 @@ class ContentBasedRecommendationService:
         try:
             repo = SimilarityRepository(db)
             recommendations = repo.get_similar_shows_with_metadata(
-                show_id=show_id,
-                n=n,
-                min_similarity=min_similarity
+                show_id=show_id, n=n, min_similarity=min_similarity
             )
             return recommendations
         finally:
             db.close()
 
     def compute_and_store_all_similarities(
-            self,
-            top_n_per_show: int = 20,
-            min_similarity: float = 0.1
-    ) -> Dict:
+        self, top_n_per_show: int = 20, min_similarity: float = 0.1
+    ) -> dict:
         """
         Compute similarities for all shows and store in database.
 
@@ -283,9 +272,9 @@ class ContentBasedRecommendationService:
         Returns:
             Dict with statistics
         """
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info("COMPUTING AND STORING ALL SIMILARITIES")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
         # Load matrices
         self._load_similarity_matrices()
@@ -303,19 +292,17 @@ class ContentBasedRecommendationService:
 
         for show_id in self._show_id_to_index.keys():
             recommendations = self.get_recommendations_from_matrix(
-                show_id=show_id,
-                n=top_n_per_show,
-                min_similarity=min_similarity
+                show_id=show_id, n=top_n_per_show, min_similarity=min_similarity
             )
 
             if recommendations:
                 all_similarities[show_id] = [
                     {
-                        'similar_show_id': rec['show_id'],
-                        'similarity_score': rec['similarity_score'],
-                        'genre_score': rec['genre_score'],
-                        'text_score': rec['text_score'],
-                        'metadata_score': rec['metadata_score']
+                        "similar_show_id": rec["show_id"],
+                        "similarity_score": rec["similarity_score"],
+                        "genre_score": rec["genre_score"],
+                        "text_score": rec["text_score"],
+                        "metadata_score": rec["metadata_score"],
                     }
                     for rec in recommendations
                 ]
@@ -334,13 +321,13 @@ class ContentBasedRecommendationService:
 
             # Get stats
             stats = repo.get_similarity_stats()
-            stats['computed_shows'] = len(all_similarities)
-            stats['top_n_per_show'] = top_n_per_show
-            stats['min_similarity'] = min_similarity
+            stats["computed_shows"] = len(all_similarities)
+            stats["top_n_per_show"] = top_n_per_show
+            stats["min_similarity"] = min_similarity
 
-            logger.info("="*60)
+            logger.info("=" * 60)
             logger.info("SIMILARITY COMPUTATION COMPLETE")
-            logger.info("="*60)
+            logger.info("=" * 60)
             logger.info(f"Total records stored: {total_records}")
             logger.info(f"Unique shows: {stats['unique_shows']}")
             logger.info(f"Avg per show: {stats['avg_similarities_per_show']:.1f}")
@@ -350,7 +337,7 @@ class ContentBasedRecommendationService:
         finally:
             db.close()
 
-    def sync_metadata_to_db(self, shows_data: List[Dict]) -> int:
+    def sync_metadata_to_db(self, shows_data: list[dict]) -> int:
         """
         Sync show metadata to database for quick lookups.
 
@@ -371,20 +358,20 @@ class ContentBasedRecommendationService:
             for show in shows_data:
                 # Handle NaN values - convert to None for database
                 rating = show.get("rating_avg")
-                if rating is not None and (
-                    isinstance(rating, float) and math.isnan(rating)
-                ):
+                if rating is not None and (isinstance(rating, float) and math.isnan(rating)):
                     rating = None
-                formatted_data.append({
-                    'show_id': show['id'],
-                    'name': show['name'],
-                    'genres': show.get('genres'),
-                    'summary': show.get('summary_clean') or show.get('summary'),
-                    'rating': rating,
-                    'type': show.get('type'),
-                    'language': show.get('language'),
-                    'network': show.get('platform')
-                })
+                formatted_data.append(
+                    {
+                        "show_id": show["id"],
+                        "name": show["name"],
+                        "genres": show.get("genres"),
+                        "summary": show.get("summary_clean") or show.get("summary"),
+                        "rating": rating,
+                        "type": show.get("type"),
+                        "language": show.get("language"),
+                        "network": show.get("platform"),
+                    }
+                )
 
             count = repo.bulk_store_shows(formatted_data)
             logger.info(f"✓ Synced {count} shows to database")
@@ -393,7 +380,7 @@ class ContentBasedRecommendationService:
         finally:
             db.close()
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get statistics about the recommendation system."""
         db = SessionLocal()
         try:
@@ -404,13 +391,13 @@ class ContentBasedRecommendationService:
             metadata_count = metadata_repo.count_shows()
 
             return {
-                'similarity_stats': similarity_stats,
-                'cached_shows': metadata_count,
-                'weights': {
-                    'genre': self.genre_weight,
-                    'text': self.text_weight,
-                    'metadata': self.metadata_weight
-                }
+                "similarity_stats": similarity_stats,
+                "cached_shows": metadata_count,
+                "weights": {
+                    "genre": self.genre_weight,
+                    "text": self.text_weight,
+                    "metadata": self.metadata_weight,
+                },
             }
         finally:
             db.close()

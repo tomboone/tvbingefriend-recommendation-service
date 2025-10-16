@@ -1,9 +1,9 @@
 """Service to load show data from existing show/season/episode/microservices"""
-from typing import List, Dict, Optional
-import time
-import logging
-import requests
 
+import logging
+import time
+
+import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -16,22 +16,20 @@ class ShowDataLoader:
     """Service to load show data from existing show/season/episode microservices."""
 
     def __init__(
-            self,
-            show_service_url: Optional[str] = None,
-            season_service_url: Optional[str] = None,
-            episode_service_url: Optional[str] = None
+        self,
+        show_service_url: str | None = None,
+        season_service_url: str | None = None,
+        episode_service_url: str | None = None,
     ):
         # Default to localhost for development
-        self.show_service_url = show_service_url or get_service_url('show', 7071)
-        self.season_service_url = season_service_url or get_service_url('season', 7072)
-        self.episode_service_url = episode_service_url or get_service_url('episode', 7073)
+        self.show_service_url = show_service_url or get_service_url("show", 7071)
+        self.season_service_url = season_service_url or get_service_url("season", 7072)
+        self.episode_service_url = episode_service_url or get_service_url("episode", 7073)
 
         # Configure session with retries
         self.session = requests.Session()
         retry_strategy = Retry(
-            total=3,
-            backoff_factor=1,
-            status_forcelist=[429, 500, 502, 503, 504]
+            total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504]
         )
         adapter = HTTPAdapter(max_retries=retry_strategy)
         # noinspection HttpUrlsUsage
@@ -40,14 +38,14 @@ class ShowDataLoader:
 
     # ===== SHOW ENDPOINTS =====
 
-    def get_show(self, show_id: int) -> Dict:
+    def get_show(self, show_id: int) -> dict:
         """Fetch single show by ID"""
         url = f"{self.show_service_url}/shows/{show_id}"
         response = self.session.get(url, timeout=10)
         response.raise_for_status()
         return response.json()
 
-    def get_all_shows_bulk(self, offset: int = 0, limit: int = 100) -> Dict:
+    def get_all_shows_bulk(self, offset: int = 0, limit: int = 100) -> dict:
         """
         Fetch shows using the bulk endpoint with pagination.
 
@@ -60,12 +58,12 @@ class ShowDataLoader:
             }
         """
         url = f"{self.show_service_url}/get_shows_bulk"
-        params = {'offset': offset, 'limit': limit}
+        params = {"offset": offset, "limit": limit}
         response = self.session.get(url, params=params, timeout=10)
         response.raise_for_status()
         return response.json()
 
-    def get_all_shows(self, batch_size: int = 100, max_shows: Optional[int] = None) -> List[Dict]:
+    def get_all_shows(self, batch_size: int = 100, max_shows: int | None = None) -> list[dict]:
         """
         Fetch all shows using pagination.
 
@@ -76,7 +74,7 @@ class ShowDataLoader:
         Returns:
             List of show dictionaries
         """
-        all_shows: List[Dict] = []
+        all_shows: list[dict] = []
         offset = 0
 
         logger.info(f"Fetching all shows (batch size: {batch_size})...")
@@ -87,7 +85,7 @@ class ShowDataLoader:
                 break
 
             result = self.get_all_shows_bulk(offset=offset, limit=batch_size)
-            shows = result.get('shows', [])
+            shows = result.get("shows", [])
 
             if not shows:
                 break
@@ -107,21 +105,21 @@ class ShowDataLoader:
 
     # ===== SEASON ENDPOINTS =====
 
-    def get_season(self, season_id: int) -> Dict:
+    def get_season(self, season_id: int) -> dict:
         """Fetch single season by ID"""
         url = f"{self.season_service_url}/seasons/{season_id}"
         response = self.session.get(url, timeout=10)
         response.raise_for_status()
         return response.json()
 
-    def get_seasons_by_show(self, show_id: int) -> List[Dict]:
+    def get_seasons_by_show(self, show_id: int) -> list[dict]:
         """Fetch all seasons for a show"""
         url = f"{self.season_service_url}/shows/{show_id}/seasons"
         response = self.session.get(url, timeout=10)
         response.raise_for_status()
         return response.json()
 
-    def get_season_by_show_and_number(self, show_id: int, season_number: int) -> Dict:
+    def get_season_by_show_and_number(self, show_id: int, season_number: int) -> dict:
         """Fetch specific season by show ID and season number"""
         url = f"{self.season_service_url}/shows/{show_id}/seasons/{season_number}"
         response = self.session.get(url, timeout=10)
@@ -130,14 +128,14 @@ class ShowDataLoader:
 
     # ===== EPISODE ENDPOINTS =====
 
-    def get_episode(self, episode_id: int) -> Dict:
+    def get_episode(self, episode_id: int) -> dict:
         """Fetch single episode by ID"""
         url = f"{self.episode_service_url}/episodes/{episode_id}"
         response = self.session.get(url, timeout=10)
         response.raise_for_status()
         return response.json()
 
-    def get_episodes_by_season(self, show_id: int, season_number: int) -> List[Dict]:
+    def get_episodes_by_season(self, show_id: int, season_number: int) -> list[dict]:
         """Fetch all episodes for a specific season"""
         url = f"{self.episode_service_url}/shows/{show_id}/seasons/{season_number}/episodes"
         response = self.session.get(url, timeout=10)
@@ -146,17 +144,15 @@ class ShowDataLoader:
 
     # ===== ENRICHMENT OPERATIONS =====
 
-    def get_show_with_seasons(self, show_id: int) -> Dict:
+    def get_show_with_seasons(self, show_id: int) -> dict:
         """Fetch show with all its seasons"""
         show = self.get_show(show_id)
-        show['seasons'] = self.get_seasons_by_show(show_id)
+        show["seasons"] = self.get_seasons_by_show(show_id)
         return show
 
     def enrich_shows_with_seasons(
-            self,
-            batch_size: int = 100,
-            max_shows: Optional[int] = None
-    ) -> List[Dict]:
+        self, batch_size: int = 100, max_shows: int | None = None
+    ) -> list[dict]:
         """
         Fetch all shows and enrich each with season summaries.
         Optimized for content-based recommendation feature extraction.
@@ -184,35 +180,33 @@ class ShowDataLoader:
         logger.info(f"Enriching {len(all_shows)} shows with season data...")
 
         for i, show in enumerate(all_shows):
-            show_id = show['id']
+            show_id = show["id"]
 
             try:
                 # Fetch seasons for this show
                 seasons = self.get_seasons_by_show(show_id)
 
                 # Extract season summaries (if your season model has summary field)
-                season_summaries = [
-                    s.get('summary', '')
-                    for s in seasons
-                    if s.get('summary')
-                ]
+                season_summaries = [s.get("summary", "") for s in seasons if s.get("summary")]
 
                 # Create enriched show record
                 enriched = {
-                    'show_id': show_id,
-                    'name': show['name'],
-                    'summary': show.get('summary', ''),
-                    'genres': show.get('genres', []),
-                    'network': show.get('network', {}).get('name') if show.get('network') else None,
-                    'webchannel': show.get('webchannel', {}).get('name') if show.get('webchannel') else None,
-                    'rating': show.get('rating', {}).get('average'),
-                    'type': show.get('type'),
-                    'language': show.get('language'),
-                    'status': show.get('status'),
-                    'season_summaries': season_summaries,
-                    'season_count': len(seasons),
-                    'premiered': show.get('premiered'),
-                    'ended': show.get('ended'),
+                    "show_id": show_id,
+                    "name": show["name"],
+                    "summary": show.get("summary", ""),
+                    "genres": show.get("genres", []),
+                    "network": show.get("network", {}).get("name") if show.get("network") else None,
+                    "webchannel": show.get("webchannel", {}).get("name")
+                    if show.get("webchannel")
+                    else None,
+                    "rating": show.get("rating", {}).get("average"),
+                    "type": show.get("type"),
+                    "language": show.get("language"),
+                    "status": show.get("status"),
+                    "season_summaries": season_summaries,
+                    "season_count": len(seasons),
+                    "premiered": show.get("premiered"),
+                    "ended": show.get("ended"),
                 }
 
                 enriched_shows.append(enriched)
@@ -225,19 +219,23 @@ class ShowDataLoader:
             except requests.HTTPError as e:
                 logger.warning(f"Failed to enrich show {show_id} ({show['name']}): {e}")
                 # Still include the show with basic data
-                enriched_shows.append({
-                    'show_id': show_id,
-                    'name': show['name'],
-                    'summary': show.get('summary', ''),
-                    'genres': show.get('genres', []),
-                    'network': show.get('network', {}).get('name') if show.get('network') else None,
-                    'rating': show.get('rating', {}).get('average'),
-                    'type': show.get('type'),
-                    'language': show.get('language'),
-                    'status': show.get('status'),
-                    'season_summaries': [],
-                    'season_count': 0,
-                })
+                enriched_shows.append(
+                    {
+                        "show_id": show_id,
+                        "name": show["name"],
+                        "summary": show.get("summary", ""),
+                        "genres": show.get("genres", []),
+                        "network": show.get("network", {}).get("name")
+                        if show.get("network")
+                        else None,
+                        "rating": show.get("rating", {}).get("average"),
+                        "type": show.get("type"),
+                        "language": show.get("language"),
+                        "status": show.get("status"),
+                        "season_summaries": [],
+                        "season_count": 0,
+                    }
+                )
 
         logger.info(f"✓ Enriched {len(enriched_shows)} shows with season data")
         return enriched_shows

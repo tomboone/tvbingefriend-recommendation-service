@@ -1,8 +1,7 @@
 """Unit tests for tvbingefriend_recommendation_service.ml.feature_extractor."""
-import pytest
+
 import numpy as np
 import pandas as pd
-from unittest.mock import Mock, patch, MagicMock
 from scipy.sparse import csr_matrix
 
 from tvbingefriend_recommendation_service.ml.feature_extractor import FeatureExtractor
@@ -33,7 +32,7 @@ class TestFeatureExtractorInit:
             text_min_df=3,
             text_max_df=0.9,
             top_n_platforms=30,
-            top_n_languages=10
+            top_n_languages=10,
         )
 
         # Assert
@@ -51,11 +50,7 @@ class TestFitTransformGenreFeatures:
         """Test basic genre feature extraction."""
         # Arrange
         extractor = FeatureExtractor()
-        genres_list = [
-            ['Drama', 'Crime'],
-            ['Comedy', 'Drama'],
-            ['Action', 'Thriller']
-        ]
+        genres_list = [["Drama", "Crime"], ["Comedy", "Drama"], ["Action", "Thriller"]]
 
         # Act
         features, encoder = extractor.fit_transform_genre_features(genres_list)
@@ -70,11 +65,7 @@ class TestFitTransformGenreFeatures:
         """Test with some empty genre lists."""
         # Arrange
         extractor = FeatureExtractor()
-        genres_list = [
-            ['Drama'],
-            [],
-            ['Comedy']
-        ]
+        genres_list = [["Drama"], [], ["Comedy"]]
 
         # Act
         features, encoder = extractor.fit_transform_genre_features(genres_list)
@@ -95,7 +86,7 @@ class TestFitTransformTextFeatures:
         summaries = [
             "A chemistry teacher cooks meth",
             "A lawyer defends criminals",
-            "Office workers in a paper company"
+            "Office workers in a paper company",
         ]
 
         # Act
@@ -113,11 +104,7 @@ class TestFitTransformTextFeatures:
         # Arrange
         # Use min_df=1 for small test data to avoid "no terms remain" error
         extractor = FeatureExtractor(text_min_df=1)
-        summaries = [
-            "<p>A chemistry teacher</p>",
-            "<b>A lawyer</b>",
-            "Office workers"
-        ]
+        summaries = ["<p>A chemistry teacher</p>", "<b>A lawyer</b>", "Office workers"]
 
         # Act
         features, vectorizer = extractor.fit_transform_text_features(summaries)
@@ -134,7 +121,7 @@ class TestFitTransformPlatformFeatures:
         """Test basic platform feature extraction."""
         # Arrange
         extractor = FeatureExtractor(top_n_platforms=2)
-        platforms = ['Netflix', 'HBO', 'Netflix', 'AMC', 'HBO']
+        platforms = ["Netflix", "HBO", "Netflix", "AMC", "HBO"]
 
         # Act
         features = extractor.fit_transform_platform_features(platforms)
@@ -148,7 +135,7 @@ class TestFitTransformPlatformFeatures:
         """Test that less common platforms go to 'other' category."""
         # Arrange
         extractor = FeatureExtractor(top_n_platforms=1)
-        platforms = ['Netflix', 'Netflix', 'HBO', 'AMC']
+        platforms = ["Netflix", "Netflix", "HBO", "AMC"]
 
         # Act
         features = extractor.fit_transform_platform_features(platforms)
@@ -163,7 +150,7 @@ class TestFitTransformPlatformFeatures:
         """Test platform features with None values."""
         # Arrange
         extractor = FeatureExtractor(top_n_platforms=2)
-        platforms = ['Netflix', None, 'HBO', 'Netflix']
+        platforms = ["Netflix", None, "HBO", "Netflix"]
 
         # Act
         features = extractor.fit_transform_platform_features(platforms)
@@ -180,7 +167,7 @@ class TestFitTransformTypeFeatures:
         """Test basic type feature extraction."""
         # Arrange
         extractor = FeatureExtractor()
-        types = ['Scripted', 'Reality', 'Scripted', 'Documentary']
+        types = ["Scripted", "Reality", "Scripted", "Documentary"]
 
         # Act
         features = extractor.fit_transform_type_features(types)
@@ -194,7 +181,7 @@ class TestFitTransformTypeFeatures:
         """Test with all shows of same type."""
         # Arrange
         extractor = FeatureExtractor()
-        types = ['Scripted', 'Scripted', 'Scripted']
+        types = ["Scripted", "Scripted", "Scripted"]
 
         # Act
         features = extractor.fit_transform_type_features(types)
@@ -212,7 +199,7 @@ class TestFitTransformLanguageFeatures:
         """Test basic language feature extraction."""
         # Arrange
         extractor = FeatureExtractor(top_n_languages=2)
-        languages = ['English', 'Spanish', 'English', 'French', 'English']
+        languages = ["English", "Spanish", "English", "French", "English"]
 
         # Act
         features = extractor.fit_transform_language_features(languages)
@@ -226,7 +213,7 @@ class TestFitTransformLanguageFeatures:
         """Test that less common languages go to 'other' category."""
         # Arrange
         extractor = FeatureExtractor(top_n_languages=1)
-        languages = ['English', 'English', 'Spanish', 'French']
+        languages = ["English", "English", "Spanish", "French"]
 
         # Act
         features = extractor.fit_transform_language_features(languages)
@@ -251,21 +238,21 @@ class TestExtractAllFeatures:
         result = extractor.extract_all_features(sample_shows_df)
 
         # Assert
-        assert 'genre_features' in result
-        assert 'text_features' in result
-        assert 'platform_features' in result
-        assert 'type_features' in result
-        assert 'language_features' in result
-        assert 'genre_encoder' in result
-        assert 'tfidf_vectorizer' in result
+        assert "genre_features" in result
+        assert "text_features" in result
+        assert "platform_features" in result
+        assert "type_features" in result
+        assert "language_features" in result
+        assert "genre_encoder" in result
+        assert "tfidf_vectorizer" in result
 
         # Check shapes
         n_shows = len(sample_shows_df)
-        assert result['genre_features'].shape[0] == n_shows
-        assert result['text_features'].shape[0] == n_shows
-        assert result['platform_features'].shape[0] == n_shows
-        assert result['type_features'].shape[0] == n_shows
-        assert result['language_features'].shape[0] == n_shows
+        assert result["genre_features"].shape[0] == n_shows
+        assert result["text_features"].shape[0] == n_shows
+        assert result["platform_features"].shape[0] == n_shows
+        assert result["type_features"].shape[0] == n_shows
+        assert result["language_features"].shape[0] == n_shows
 
     def test_extract_all_features_encoders_fitted(self, sample_shows_df):
         """Test that encoders are properly fitted."""
@@ -274,7 +261,7 @@ class TestExtractAllFeatures:
         extractor = FeatureExtractor(text_min_df=1)
 
         # Act
-        result = extractor.extract_all_features(sample_shows_df)
+        extractor.extract_all_features(sample_shows_df)
 
         # Assert
         assert extractor.genre_encoder is not None
@@ -287,32 +274,34 @@ class TestExtractAllFeatures:
         # Arrange
         # Use min_df=1 for small test data to avoid "no terms remain" error
         extractor = FeatureExtractor(text_min_df=1)
-        df = pd.DataFrame([
-            {
-                'id': 1,
-                'name': 'Show 1',
-                'genres': ['Drama'],
-                'summary_clean': 'Summary 1',
-                'type': 'Scripted',
-                'language': 'English',
-                'platform': None,
-                'rating_avg': 8.5
-            },
-            {
-                'id': 2,
-                'name': 'Show 2',
-                'genres': ['Comedy'],
-                'summary_clean': None,
-                'type': 'Scripted',
-                'language': 'English',
-                'platform': 'Netflix',
-                'rating_avg': 7.5
-            }
-        ])
+        df = pd.DataFrame(
+            [
+                {
+                    "id": 1,
+                    "name": "Show 1",
+                    "genres": ["Drama"],
+                    "summary_clean": "Summary 1",
+                    "type": "Scripted",
+                    "language": "English",
+                    "platform": None,
+                    "rating_avg": 8.5,
+                },
+                {
+                    "id": 2,
+                    "name": "Show 2",
+                    "genres": ["Comedy"],
+                    "summary_clean": None,
+                    "type": "Scripted",
+                    "language": "English",
+                    "platform": "Netflix",
+                    "rating_avg": 7.5,
+                },
+            ]
+        )
 
         # Act
         result = extractor.extract_all_features(df)
 
         # Assert
-        assert result['genre_features'].shape[0] == 2
-        assert result['text_features'].shape[0] == 2
+        assert result["genre_features"].shape[0] == 2
+        assert result["text_features"].shape[0] == 2

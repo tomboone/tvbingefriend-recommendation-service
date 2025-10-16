@@ -1,11 +1,12 @@
 """Feature extraction for TV show recommendations."""
+
+import logging
+
 import numpy as np
 import pandas as pd
-from typing import List, Dict, Tuple, Optional
+from scipy.sparse import csr_matrix
 from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore
 from sklearn.preprocessing import MultiLabelBinarizer  # type: ignore
-from scipy.sparse import csr_matrix
-import logging
 
 from tvbingefriend_recommendation_service.ml.text_processor import clean_html
 
@@ -22,7 +23,7 @@ class FeatureExtractor:
         text_min_df: int = 2,
         text_max_df: float = 0.8,
         top_n_platforms: int = 20,
-        top_n_languages: int = 5
+        top_n_languages: int = 5,
     ):
         """
         Initialize feature extractor.
@@ -41,15 +42,14 @@ class FeatureExtractor:
         self.top_n_languages = top_n_languages
 
         # Encoders (fitted during transform)
-        self.genre_encoder: Optional[MultiLabelBinarizer] = None
-        self.tfidf_vectorizer: Optional[TfidfVectorizer] = None
-        self.top_platforms: Optional[List[str]] = None
-        self.top_languages: Optional[List[str]] = None
+        self.genre_encoder: MultiLabelBinarizer | None = None
+        self.tfidf_vectorizer: TfidfVectorizer | None = None
+        self.top_platforms: list[str] | None = None
+        self.top_languages: list[str] | None = None
 
     def fit_transform_genre_features(
-        self,
-        genres_list: List[List[str]]
-    ) -> Tuple[np.ndarray, MultiLabelBinarizer]:
+        self, genres_list: list[list[str]]
+    ) -> tuple[np.ndarray, MultiLabelBinarizer]:
         """
         Extract genre features using multi-hot encoding.
 
@@ -70,9 +70,8 @@ class FeatureExtractor:
         return genre_features, self.genre_encoder
 
     def fit_transform_text_features(
-        self,
-        summaries: List[str]
-    ) -> Tuple[csr_matrix, TfidfVectorizer]:
+        self, summaries: list[str]
+    ) -> tuple[csr_matrix, TfidfVectorizer]:
         """
         Extract text features using TF-IDF on summaries.
 
@@ -92,9 +91,9 @@ class FeatureExtractor:
             max_features=self.max_text_features,
             min_df=self.text_min_df,
             max_df=self.text_max_df,
-            stop_words='english',
+            stop_words="english",
             ngram_range=(1, 2),  # Unigrams and bigrams
-            strip_accents='unicode'
+            strip_accents="unicode",
         )
 
         text_features = self.tfidf_vectorizer.fit_transform(cleaned_summaries)
@@ -107,10 +106,7 @@ class FeatureExtractor:
 
         return text_features, self.tfidf_vectorizer
 
-    def fit_transform_platform_features(
-        self,
-        platforms: List[Optional[str]]
-    ) -> np.ndarray:
+    def fit_transform_platform_features(self, platforms: list[str | None]) -> np.ndarray:
         """
         Extract platform features using one-hot encoding (top N platforms).
 
@@ -145,10 +141,7 @@ class FeatureExtractor:
 
         return platform_features
 
-    def fit_transform_type_features(
-        self,
-        types: List[str]
-    ) -> np.ndarray:
+    def fit_transform_type_features(self, types: list[str]) -> np.ndarray:
         """
         Extract type features using one-hot encoding.
 
@@ -161,7 +154,7 @@ class FeatureExtractor:
         logger.info("Extracting type features...")
 
         # Use pandas get_dummies for simple one-hot encoding
-        type_df = pd.get_dummies(pd.Series(types), prefix='type')
+        type_df = pd.get_dummies(pd.Series(types), prefix="type")
         type_features = type_df.values
 
         logger.info(f" Type features: {type_features.shape}")
@@ -169,10 +162,7 @@ class FeatureExtractor:
 
         return type_features
 
-    def fit_transform_language_features(
-        self,
-        languages: List[str]
-    ) -> np.ndarray:
+    def fit_transform_language_features(self, languages: list[str]) -> np.ndarray:
         """
         Extract language features using one-hot encoding (top N languages).
 
@@ -207,10 +197,7 @@ class FeatureExtractor:
 
         return language_features
 
-    def extract_all_features(
-        self,
-        shows_df: pd.DataFrame
-    ) -> Dict[str, np.ndarray]:
+    def extract_all_features(self, shows_df: pd.DataFrame) -> dict[str, np.ndarray]:
         """
         Extract all features from shows DataFrame.
 
@@ -221,51 +208,45 @@ class FeatureExtractor:
         Returns:
             Dictionary with feature arrays and encoders
         """
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info("EXTRACTING ALL FEATURES")
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info(f"Processing {len(shows_df)} shows...")
 
         # Extract each feature group
         genre_features, genre_encoder = self.fit_transform_genre_features(
-            shows_df['genres'].tolist()
+            shows_df["genres"].tolist()
         )
 
         text_features, tfidf_vectorizer = self.fit_transform_text_features(
-            shows_df['summary_clean'].tolist()
+            shows_df["summary_clean"].tolist()
         )
 
-        platform_features = self.fit_transform_platform_features(
-            shows_df['platform'].tolist()
-        )
+        platform_features = self.fit_transform_platform_features(shows_df["platform"].tolist())
 
-        type_features = self.fit_transform_type_features(
-            shows_df['type'].tolist()
-        )
+        type_features = self.fit_transform_type_features(shows_df["type"].tolist())
 
-        language_features = self.fit_transform_language_features(
-            shows_df['language'].tolist()
-        )
+        language_features = self.fit_transform_language_features(shows_df["language"].tolist())
 
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info("FEATURE EXTRACTION COMPLETE")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
         total_features = (
-            genre_features.shape[1] +
-            text_features.shape[1] +
-            platform_features.shape[1] +
-            type_features.shape[1] +
-            language_features.shape[1]
+            genre_features.shape[1]
+            + text_features.shape[1]
+            + platform_features.shape[1]
+            + type_features.shape[1]
+            + language_features.shape[1]
         )
         logger.info(f"Total feature dimensions: {total_features}")
 
         return {
-            'genre_features': genre_features,
-            'text_features': text_features,
-            'platform_features': platform_features,
-            'type_features': type_features,
-            'language_features': language_features,
-            'genre_encoder': genre_encoder,
-            'tfidf_vectorizer': tfidf_vectorizer
+            "genre_features": genre_features,
+            "text_features": text_features,
+            "platform_features": platform_features,
+            "type_features": type_features,
+            "language_features": language_features,
+            "genre_encoder": genre_encoder,
+            "tfidf_vectorizer": tfidf_vectorizer,
         }

@@ -1,10 +1,11 @@
 """Unit tests for tvbingefriend_recommendation_service.ml.text_processor."""
-import pytest
+
 import pandas as pd
+
 from tvbingefriend_recommendation_service.ml.text_processor import (
     clean_html,
     clean_texts,
-    combine_text_features
+    combine_text_features,
 )
 
 
@@ -98,11 +99,7 @@ class TestCleanTexts:
     def test_clean_texts_multiple_strings(self):
         """Test cleaning a list of HTML texts."""
         # Arrange
-        texts = [
-            "<p>First text</p>",
-            "<b>Second text</b>",
-            "Third text"
-        ]
+        texts = ["<p>First text</p>", "<b>Second text</b>", "Third text"]
         expected = ["First text", "Second text", "Third text"]
 
         # Act

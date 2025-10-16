@@ -1,13 +1,12 @@
 """Repository for managing show similarity data in the database."""
 
-from typing import List, Dict, Optional
-from sqlalchemy.orm import Session
-from sqlalchemy import desc, and_
-from datetime import datetime, UTC
 import logging
+from datetime import UTC, datetime
 
-from tvbingefriend_recommendation_service.models import ShowSimilarity
-from tvbingefriend_recommendation_service.models import ShowMetadata
+from sqlalchemy import and_, desc
+from sqlalchemy.orm import Session
+
+from tvbingefriend_recommendation_service.models import ShowMetadata, ShowSimilarity
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +20,7 @@ class SimilarityRepository:
         self.db = db
 
     def store_similarities(
-            self,
-            show_id: int,
-            similar_shows: List[Dict],
-            batch_size: int = 100
+        self, show_id: int, similar_shows: list[dict], batch_size: int = 100
     ) -> int:
         """
         Store similarity scores for a show.
@@ -43,28 +39,26 @@ class SimilarityRepository:
             Number of similarities stored
         """
         # Delete existing similarities for this show
-        self.db.query(ShowSimilarity).filter(
-            ShowSimilarity.show_id == show_id
-        ).delete()
+        self.db.query(ShowSimilarity).filter(ShowSimilarity.show_id == show_id).delete()
 
         # Prepare records
         records = []
         for item in similar_shows:
             record = ShowSimilarity(
                 show_id=show_id,
-                similar_show_id=item['similar_show_id'],
-                similarity_score=item['similarity_score'],
-                genre_score=item.get('genre_score'),
-                text_score=item.get('text_score'),
-                metadata_score=item.get('metadata_score'),
-                computed_at=datetime.now(UTC)
+                similar_show_id=item["similar_show_id"],
+                similarity_score=item["similarity_score"],
+                genre_score=item.get("genre_score"),
+                text_score=item.get("text_score"),
+                metadata_score=item.get("metadata_score"),
+                computed_at=datetime.now(UTC),
             )
             records.append(record)
 
         # Batch insert
         count = 0
         for i in range(0, len(records), batch_size):
-            batch = records[i:i + batch_size]
+            batch = records[i : i + batch_size]
             self.db.bulk_save_objects(batch)
             self.db.commit()
             count += len(batch)
@@ -76,10 +70,10 @@ class SimilarityRepository:
         return count
 
     def bulk_store_all_similarities(
-            self,
-            all_similarities: Dict[int, List[Dict]],
-            batch_size: int = 1000,
-            clear_existing: bool = True
+        self,
+        all_similarities: dict[int, list[dict]],
+        batch_size: int = 1000,
+        clear_existing: bool = True,
     ) -> int:
         """
         Store similarities for multiple shows in bulk.
@@ -104,12 +98,12 @@ class SimilarityRepository:
             for item in similar_shows:
                 record = ShowSimilarity(
                     show_id=show_id,
-                    similar_show_id=item['similar_show_id'],
-                    similarity_score=item['similarity_score'],
-                    genre_score=item.get('genre_score'),
-                    text_score=item.get('text_score'),
-                    metadata_score=item.get('metadata_score'),
-                    computed_at=datetime.now(UTC)
+                    similar_show_id=item["similar_show_id"],
+                    similarity_score=item["similarity_score"],
+                    genre_score=item.get("genre_score"),
+                    text_score=item.get("text_score"),
+                    metadata_score=item.get("metadata_score"),
+                    computed_at=datetime.now(UTC),
                 )
                 all_records.append(record)
 
@@ -118,7 +112,7 @@ class SimilarityRepository:
         logger.info(f"Inserting {len(all_records)} similarity records...")
 
         for i in range(0, len(all_records), batch_size):
-            batch = all_records[i:i + batch_size]
+            batch = all_records[i : i + batch_size]
             self.db.bulk_save_objects(batch)
             self.db.commit()
             total_count += len(batch)
@@ -131,11 +125,8 @@ class SimilarityRepository:
 
     # noinspection PyTypeChecker
     def get_similar_shows(
-            self,
-            show_id: int,
-            n: int = 10,
-            min_similarity: float = 0.0
-    ) -> List[ShowSimilarity]:
+        self, show_id: int, n: int = 10, min_similarity: float = 0.0
+    ) -> list[ShowSimilarity]:
         """
         Get most similar shows for a given show.
 
@@ -152,7 +143,7 @@ class SimilarityRepository:
             .filter(
                 and_(
                     ShowSimilarity.show_id == show_id,
-                    ShowSimilarity.similarity_score >= min_similarity
+                    ShowSimilarity.similarity_score >= min_similarity,
                 )
             )
             .order_by(desc(ShowSimilarity.similarity_score))
@@ -161,11 +152,8 @@ class SimilarityRepository:
         )
 
     def get_similar_shows_with_metadata(
-            self,
-            show_id: int,
-            n: int = 10,
-            min_similarity: float = 0.0
-    ) -> List[Dict]:
+        self, show_id: int, n: int = 10, min_similarity: float = 0.0
+    ) -> list[dict]:
         """
         Get similar shows with their metadata.
 
@@ -179,14 +167,11 @@ class SimilarityRepository:
         """
         results = (
             self.db.query(ShowSimilarity, ShowMetadata)
-            .join(
-                ShowMetadata,
-                ShowSimilarity.similar_show_id == ShowMetadata.show_id
-            )
+            .join(ShowMetadata, ShowSimilarity.similar_show_id == ShowMetadata.show_id)
             .filter(
                 and_(
                     ShowSimilarity.show_id == show_id,
-                    ShowSimilarity.similarity_score >= min_similarity
+                    ShowSimilarity.similarity_score >= min_similarity,
                 )
             )
             .order_by(desc(ShowSimilarity.similarity_score))
@@ -197,34 +182,32 @@ class SimilarityRepository:
         # Format results
         recommendations = []
         for similarity, metadata in results:
-            recommendations.append({
-                'show_id': metadata.show_id,
-                'name': metadata.name,
-                'genres': metadata.genres,
-                'summary': metadata.summary,
-                'rating': metadata.rating,
-                'type': metadata.type,
-                'language': metadata.language,
-                'network': metadata.network,
-                'similarity_score': similarity.similarity_score,
-                'genre_score': similarity.genre_score,
-                'text_score': similarity.text_score,
-                'metadata_score': similarity.metadata_score,
-            })
+            recommendations.append(
+                {
+                    "show_id": metadata.show_id,
+                    "name": metadata.name,
+                    "genres": metadata.genres,
+                    "summary": metadata.summary,
+                    "rating": metadata.rating,
+                    "type": metadata.type,
+                    "language": metadata.language,
+                    "network": metadata.network,
+                    "similarity_score": similarity.similarity_score,
+                    "genre_score": similarity.genre_score,
+                    "text_score": similarity.text_score,
+                    "metadata_score": similarity.metadata_score,
+                }
+            )
 
         return recommendations
 
     # noinspection PyTypeChecker
-    def get_all_show_ids_with_similarities(self) -> List[int]:
+    def get_all_show_ids_with_similarities(self) -> list[int]:
         """Get list of all show IDs that have computed similarities."""
-        result = (
-            self.db.query(ShowSimilarity.show_id)
-            .distinct()
-            .all()
-        )
+        result = self.db.query(ShowSimilarity.show_id).distinct().all()
         return [row[0] for row in result]
 
-    def count_similarities(self, show_id: Optional[int] = None) -> int:
+    def count_similarities(self, show_id: int | None = None) -> int:
         """
         Count similarity records.
 
@@ -251,24 +234,16 @@ class SimilarityRepository:
         Returns:
             Number of deleted records
         """
-        count = (
-            self.db.query(ShowSimilarity)
-            .filter(ShowSimilarity.show_id == show_id)
-            .delete()
-        )
+        count = self.db.query(ShowSimilarity).filter(ShowSimilarity.show_id == show_id).delete()
         self.db.commit()
 
         logger.info(f"Deleted {count} similarities for show {show_id}")
         return count
 
-    def get_similarity_stats(self) -> Dict:
+    def get_similarity_stats(self) -> dict:
         """Get statistics about stored similarities."""
         total_records = self.db.query(ShowSimilarity).count()
-        unique_shows = (
-            self.db.query(ShowSimilarity.show_id)
-            .distinct()
-            .count()
-        )
+        unique_shows = self.db.query(ShowSimilarity.show_id).distinct().count()
 
         # Average similarities per show
         avg_per_show = total_records / unique_shows if unique_shows > 0 else 0
@@ -281,8 +256,8 @@ class SimilarityRepository:
         )
 
         return {
-            'total_records': total_records,
-            'unique_shows': unique_shows,
-            'avg_similarities_per_show': avg_per_show,
-            'last_computed': latest[0] if latest else None
+            "total_records": total_records,
+            "unique_shows": unique_shows,
+            "avg_similarities_per_show": avg_per_show,
+            "last_computed": latest[0] if latest else None,
         }

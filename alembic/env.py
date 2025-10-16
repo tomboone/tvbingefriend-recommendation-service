@@ -1,15 +1,14 @@
 """alembic/env.py"""
-from logging.config import fileConfig
-from pathlib import Path
-
-from alembic import context
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
-from tvbingefriend_recommendation_service.config import get_database_url
 
 # Import your Base and models
 import sys
+from logging.config import fileConfig
+from pathlib import Path
+
+from sqlalchemy import engine_from_config, pool
+
+from alembic import context
+from tvbingefriend_recommendation_service.config import get_database_url
 
 # Add your package to path
 project_root = Path(__file__).resolve().parent.parent
@@ -23,7 +22,7 @@ config = context.config
 
 # Set database URL
 database_url = get_database_url()
-config.set_main_option('sqlalchemy.url', database_url)
+config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:
@@ -55,10 +54,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

@@ -41,6 +41,53 @@ name = "TBC_Feed"
 url = "https://pkgs.dev.azure.com/tomboonedotcom/BingeFriend/_packaging/TBC_Feed/pypi/simple/"
 priority = "primary"
 
+[tool.bandit]
+exclude_dirs = ["tests", "notebooks", ".venv", "venv"]
+skips = [
+    "B101",  # assert_used (needed for pytest)
+    "B403",  # import_pickle (legitimate use for ML feature caching)
+    "B404",  # import_subprocess (needed for pipeline orchestration)
+    "B603",  # subprocess_without_shell (safe - no user input)
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # Ignore unused imports in __init__.py
+"scripts/*.py" = ["E402"]  # Scripts need to add parent to path before importing
+"alembic/*.py" = ["E402"]  # Alembic files need to add project root to path
+"notebooks/**/*.ipynb" = ["E402"]  # Notebooks have special import order
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = false  # Too strict for data science code
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+exclude = ["tests", "notebooks", "alembic", "scripts"]
+# Relax checks for common patterns
+allow_untyped_calls = true
+allow_untyped_defs = true
+no_implicit_optional = false  # Allow None defaults without Optional[]
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

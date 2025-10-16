@@ -1,7 +1,7 @@
 """Unit tests for tvbingefriend_recommendation_service.ml.similarity_computer."""
-import pytest
+
 import numpy as np
-from scipy.sparse import csr_matrix
+import pytest
 
 from tvbingefriend_recommendation_service.ml.similarity_computer import SimilarityComputer
 
@@ -22,11 +22,7 @@ class TestSimilarityComputerInit:
     def test_init_custom_weights(self):
         """Test initialization with custom weights."""
         # Act
-        computer = SimilarityComputer(
-            genre_weight=0.3,
-            text_weight=0.6,
-            metadata_weight=0.1
-        )
+        computer = SimilarityComputer(genre_weight=0.3, text_weight=0.6, metadata_weight=0.1)
 
         # Assert
         assert computer.genre_weight == 0.3
@@ -59,10 +55,7 @@ class TestComputeGenreSimilarity:
         """Test similarity between identical shows."""
         # Arrange
         computer = SimilarityComputer()
-        features = np.array([
-            [1, 1, 0],
-            [1, 1, 0]
-        ], dtype=float)
+        features = np.array([[1, 1, 0], [1, 1, 0]], dtype=float)
 
         # Act
         similarity = computer.compute_genre_similarity(features)
@@ -76,10 +69,7 @@ class TestComputeGenreSimilarity:
         """Test similarity between shows with no common genres."""
         # Arrange
         computer = SimilarityComputer()
-        features = np.array([
-            [1, 0, 0],
-            [0, 1, 0]
-        ], dtype=float)
+        features = np.array([[1, 0, 0], [0, 1, 0]], dtype=float)
 
         # Act
         similarity = computer.compute_genre_similarity(features)
@@ -96,11 +86,7 @@ class TestComputeTextSimilarity:
         """Test text similarity with dense matrix."""
         # Arrange
         computer = SimilarityComputer()
-        features = np.array([
-            [1.0, 0.5, 0.0],
-            [0.5, 1.0, 0.2],
-            [0.0, 0.2, 1.0]
-        ])
+        features = np.array([[1.0, 0.5, 0.0], [0.5, 1.0, 0.2], [0.0, 0.2, 1.0]])
 
         # Act
         similarity = computer.compute_text_similarity(features)
@@ -129,10 +115,7 @@ class TestComputeMetadataSimilarity:
     """Tests for compute_metadata_similarity method."""
 
     def test_compute_metadata_similarity_basic(
-        self,
-        sample_platform_features,
-        sample_type_features,
-        sample_language_features
+        self, sample_platform_features, sample_type_features, sample_language_features
     ):
         """Test basic metadata similarity computation."""
         # Arrange
@@ -140,9 +123,7 @@ class TestComputeMetadataSimilarity:
 
         # Act
         similarity = computer.compute_metadata_similarity(
-            sample_platform_features,
-            sample_type_features,
-            sample_language_features
+            sample_platform_features, sample_type_features, sample_language_features
         )
 
         # Assert
@@ -177,11 +158,7 @@ class TestComputeHybridSimilarity:
     def test_compute_hybrid_similarity_basic(self, sample_similarity_matrix):
         """Test hybrid similarity computation."""
         # Arrange
-        computer = SimilarityComputer(
-            genre_weight=0.4,
-            text_weight=0.5,
-            metadata_weight=0.1
-        )
+        computer = SimilarityComputer(genre_weight=0.4, text_weight=0.5, metadata_weight=0.1)
         genre_sim = sample_similarity_matrix
         text_sim = sample_similarity_matrix * 0.9
         metadata_sim = sample_similarity_matrix * 0.8
@@ -202,11 +179,7 @@ class TestComputeHybridSimilarity:
     def test_compute_hybrid_similarity_weights_normalized(self):
         """Test that weights are properly normalized."""
         # Arrange
-        computer = SimilarityComputer(
-            genre_weight=2.0,
-            text_weight=3.0,
-            metadata_weight=1.0
-        )
+        computer = SimilarityComputer(genre_weight=2.0, text_weight=3.0, metadata_weight=1.0)
         # Create simple matrices
         genre_sim = np.array([[1.0, 0.6], [0.6, 1.0]])
         text_sim = np.array([[1.0, 0.8], [0.8, 1.0]])
@@ -218,17 +191,13 @@ class TestComputeHybridSimilarity:
         # Assert
         # Weights sum to 6, so normalized are: 2/6, 3/6, 1/6
         # hybrid[0,1] = (2/6)*0.6 + (3/6)*0.8 + (1/6)*0.4
-        expected = (2/6)*0.6 + (3/6)*0.8 + (1/6)*0.4
+        expected = (2 / 6) * 0.6 + (3 / 6) * 0.8 + (1 / 6) * 0.4
         assert pytest.approx(hybrid[0, 1], abs=1e-6) == expected
 
     def test_compute_hybrid_similarity_equal_weights(self):
         """Test with equal weights for all components."""
         # Arrange
-        computer = SimilarityComputer(
-            genre_weight=1.0,
-            text_weight=1.0,
-            metadata_weight=1.0
-        )
+        computer = SimilarityComputer(genre_weight=1.0, text_weight=1.0, metadata_weight=1.0)
         genre_sim = np.array([[1.0, 0.3], [0.3, 1.0]])
         text_sim = np.array([[1.0, 0.6], [0.6, 1.0]])
         metadata_sim = np.array([[1.0, 0.9], [0.9, 1.0]])
@@ -251,34 +220,34 @@ class TestComputeAllSimilarities:
         sample_text_features,
         sample_platform_features,
         sample_type_features,
-        sample_language_features
+        sample_language_features,
     ):
         """Test computing all similarity types."""
         # Arrange
         computer = SimilarityComputer()
         features = {
-            'genre_features': sample_genre_features,
-            'text_features': sample_text_features,
-            'platform_features': sample_platform_features,
-            'type_features': sample_type_features,
-            'language_features': sample_language_features
+            "genre_features": sample_genre_features,
+            "text_features": sample_text_features,
+            "platform_features": sample_platform_features,
+            "type_features": sample_type_features,
+            "language_features": sample_language_features,
         }
 
         # Act
         result = computer.compute_all_similarities(features)
 
         # Assert
-        assert 'genre_similarity' in result
-        assert 'text_similarity' in result
-        assert 'metadata_similarity' in result
-        assert 'hybrid_similarity' in result
+        assert "genre_similarity" in result
+        assert "text_similarity" in result
+        assert "metadata_similarity" in result
+        assert "hybrid_similarity" in result
 
         # All should be same shape
         shape = (3, 3)
-        assert result['genre_similarity'].shape == shape
-        assert result['text_similarity'].shape == shape
-        assert result['metadata_similarity'].shape == shape
-        assert result['hybrid_similarity'].shape == shape
+        assert result["genre_similarity"].shape == shape
+        assert result["text_similarity"].shape == shape
+        assert result["metadata_similarity"].shape == shape
+        assert result["hybrid_similarity"].shape == shape
 
 
 class TestGetSimilarityStatistics:
@@ -293,40 +262,36 @@ class TestGetSimilarityStatistics:
         stats = computer.get_similarity_statistics(sample_similarity_matrix)
 
         # Assert
-        assert 'mean' in stats
-        assert 'std' in stats
-        assert 'min' in stats
-        assert 'max' in stats
-        assert 'median' in stats
+        assert "mean" in stats
+        assert "std" in stats
+        assert "min" in stats
+        assert "max" in stats
+        assert "median" in stats
 
         # All stats should be floats
-        for key, value in stats.items():
+        for _key, value in stats.items():
             assert isinstance(value, float)
 
         # Logical bounds
-        assert 0 <= stats['min'] <= stats['max'] <= 1
-        assert 0 <= stats['mean'] <= 1
-        assert stats['std'] >= 0
+        assert 0 <= stats["min"] <= stats["max"] <= 1
+        assert 0 <= stats["mean"] <= 1
+        assert stats["std"] >= 0
 
     def test_get_similarity_statistics_excludes_diagonal(self):
         """Test that statistics exclude diagonal (self-similarity)."""
         # Arrange
         computer = SimilarityComputer()
         # Matrix where diagonal is 1 and off-diagonal is 0.5
-        matrix = np.array([
-            [1.0, 0.5, 0.5],
-            [0.5, 1.0, 0.5],
-            [0.5, 0.5, 1.0]
-        ])
+        matrix = np.array([[1.0, 0.5, 0.5], [0.5, 1.0, 0.5], [0.5, 0.5, 1.0]])
 
         # Act
         stats = computer.get_similarity_statistics(matrix)
 
         # Assert
         # Mean should be 0.5 (not affected by diagonal 1.0)
-        assert pytest.approx(stats['mean'], abs=1e-6) == 0.5
+        assert pytest.approx(stats["mean"], abs=1e-6) == 0.5
         # Max should be 0.5 (diagonal excluded)
-        assert pytest.approx(stats['max'], abs=1e-6) == 0.5
+        assert pytest.approx(stats["max"], abs=1e-6) == 0.5
 
     def test_get_similarity_statistics_uniform_matrix(self):
         """Test statistics for uniform similarity matrix."""
@@ -340,8 +305,8 @@ class TestGetSimilarityStatistics:
 
         # Assert
         # All off-diagonal values are 0.7
-        assert pytest.approx(stats['mean'], abs=1e-6) == 0.7
-        assert pytest.approx(stats['median'], abs=1e-6) == 0.7
-        assert pytest.approx(stats['std'], abs=1e-6) == 0.0
-        assert pytest.approx(stats['min'], abs=1e-6) == 0.7
-        assert pytest.approx(stats['max'], abs=1e-6) == 0.7
+        assert pytest.approx(stats["mean"], abs=1e-6) == 0.7
+        assert pytest.approx(stats["median"], abs=1e-6) == 0.7
+        assert pytest.approx(stats["std"], abs=1e-6) == 0.0
+        assert pytest.approx(stats["min"], abs=1e-6) == 0.7
+        assert pytest.approx(stats["max"], abs=1e-6) == 0.7

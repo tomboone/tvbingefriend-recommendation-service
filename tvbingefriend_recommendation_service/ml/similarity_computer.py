@@ -1,8 +1,9 @@
 """Compute similarity matrices for TV show recommendations."""
-import numpy as np
-from typing import Dict
-from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
+
 import logging
+
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -12,10 +13,7 @@ class SimilarityComputer:
     """Compute similarity matrices from feature arrays."""
 
     def __init__(
-        self,
-        genre_weight: float = 0.4,
-        text_weight: float = 0.5,
-        metadata_weight: float = 0.1
+        self, genre_weight: float = 0.4, text_weight: float = 0.5, metadata_weight: float = 0.1
     ):
         """
         Initialize similarity computer.
@@ -41,7 +39,9 @@ class SimilarityComputer:
         """
         logger.info("Computing genre similarity...")
         similarity = cosine_similarity(genre_features)
-        logger.info(f" Genre similarity: {similarity.shape}, range [{similarity.min():.3f}, {similarity.max():.3f}]")
+        logger.info(
+            f" Genre similarity: {similarity.shape}, range [{similarity.min():.3f}, {similarity.max():.3f}]"
+        )
         return similarity
 
     def compute_text_similarity(self, text_features) -> np.ndarray:
@@ -56,14 +56,16 @@ class SimilarityComputer:
         """
         logger.info("Computing text similarity...")
         similarity = cosine_similarity(text_features)
-        logger.info(f" Text similarity: {similarity.shape}, range [{similarity.min():.3f}, {similarity.max():.3f}]")
+        logger.info(
+            f" Text similarity: {similarity.shape}, range [{similarity.min():.3f}, {similarity.max():.3f}]"
+        )
         return similarity
 
     def compute_metadata_similarity(
         self,
         platform_features: np.ndarray,
         type_features: np.ndarray,
-        language_features: np.ndarray
+        language_features: np.ndarray,
     ) -> np.ndarray:
         """
         Compute metadata similarity by combining platform, type, and language features.
@@ -79,11 +81,7 @@ class SimilarityComputer:
         logger.info("Computing metadata similarity...")
 
         # Combine metadata features
-        metadata_features = np.hstack([
-            platform_features,
-            type_features,
-            language_features
-        ])
+        metadata_features = np.hstack([platform_features, type_features, language_features])
 
         similarity = cosine_similarity(metadata_features)
         logger.info(
@@ -95,7 +93,7 @@ class SimilarityComputer:
         self,
         genre_similarity: np.ndarray,
         text_similarity: np.ndarray,
-        metadata_similarity: np.ndarray
+        metadata_similarity: np.ndarray,
     ) -> np.ndarray:
         """
         Compute hybrid similarity as weighted combination.
@@ -116,13 +114,13 @@ class SimilarityComputer:
         text_w = self.text_weight / total_weight
         metadata_w = self.metadata_weight / total_weight
 
-        logger.info(f"  Weights - Genre: {genre_w:.2f}, Text: {text_w:.2f}, Metadata: {metadata_w:.2f}")
+        logger.info(
+            f"  Weights - Genre: {genre_w:.2f}, Text: {text_w:.2f}, Metadata: {metadata_w:.2f}"
+        )
 
         # Weighted combination
         hybrid_similarity = (
-            genre_w * genre_similarity +
-            text_w * text_similarity +
-            metadata_w * metadata_similarity
+            genre_w * genre_similarity + text_w * text_similarity + metadata_w * metadata_similarity
         )
 
         logger.info(
@@ -131,10 +129,7 @@ class SimilarityComputer:
         )
         return hybrid_similarity
 
-    def compute_all_similarities(
-        self,
-        features: Dict[str, np.ndarray]
-    ) -> Dict[str, np.ndarray]:
+    def compute_all_similarities(self, features: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
         """
         Compute all similarity matrices from feature dictionary.
 
@@ -144,47 +139,36 @@ class SimilarityComputer:
         Returns:
             Dictionary with all similarity matrices
         """
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info("COMPUTING ALL SIMILARITIES")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
         # Compute individual similarities
-        genre_similarity = self.compute_genre_similarity(
-            features['genre_features']
-        )
+        genre_similarity = self.compute_genre_similarity(features["genre_features"])
 
-        text_similarity = self.compute_text_similarity(
-            features['text_features']
-        )
+        text_similarity = self.compute_text_similarity(features["text_features"])
 
         metadata_similarity = self.compute_metadata_similarity(
-            features['platform_features'],
-            features['type_features'],
-            features['language_features']
+            features["platform_features"], features["type_features"], features["language_features"]
         )
 
         # Compute hybrid similarity
         hybrid_similarity = self.compute_hybrid_similarity(
-            genre_similarity,
-            text_similarity,
-            metadata_similarity
+            genre_similarity, text_similarity, metadata_similarity
         )
 
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info("SIMILARITY COMPUTATION COMPLETE")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
         return {
-            'genre_similarity': genre_similarity,
-            'text_similarity': text_similarity,
-            'metadata_similarity': metadata_similarity,
-            'hybrid_similarity': hybrid_similarity
+            "genre_similarity": genre_similarity,
+            "text_similarity": text_similarity,
+            "metadata_similarity": metadata_similarity,
+            "hybrid_similarity": hybrid_similarity,
         }
 
-    def get_similarity_statistics(
-        self,
-        similarity_matrix: np.ndarray
-    ) -> Dict[str, float]:
+    def get_similarity_statistics(self, similarity_matrix: np.ndarray) -> dict[str, float]:
         """
         Compute statistics for a similarity matrix.
 
@@ -198,9 +182,9 @@ class SimilarityComputer:
         upper_triangle = similarity_matrix[np.triu_indices_from(similarity_matrix, k=1)]
 
         return {
-            'mean': float(upper_triangle.mean()),
-            'std': float(upper_triangle.std()),
-            'min': float(upper_triangle.min()),
-            'max': float(upper_triangle.max()),
-            'median': float(np.median(upper_triangle))
+            "mean": float(upper_triangle.mean()),
+            "std": float(upper_triangle.std()),
+            "min": float(upper_triangle.min()),
+            "max": float(upper_triangle.max()),
+            "median": float(np.median(upper_triangle)),
         }

@@ -1,8 +1,8 @@
 """Blob storage client wrapper for recommendation data."""
+
 import logging
-from pathlib import Path
-from typing import Optional, List
 import os
+from pathlib import Path
 
 from tvbingefriend_azure_storage_service import StorageService  # type: ignore
 
@@ -17,11 +17,7 @@ class BlobStorageClient:
     Uses the tvbingefriend-azure-storage-service library.
     """
 
-    def __init__(
-        self,
-        connection_string: Optional[str] = None,
-        container_name: Optional[str] = None
-    ):
+    def __init__(self, connection_string: str | None = None, container_name: str | None = None):
         """
         Initialize blob storage client.
 
@@ -54,7 +50,7 @@ class BlobStorageClient:
         try:
             logger.info(f"Uploading {local_path} to {blob_name}...")
             blob_client = self.container_client.get_blob_client(blob_name)
-            with open(local_path, 'rb') as data:
+            with open(local_path, "rb") as data:
                 blob_client.upload_blob(data, overwrite=True)
             file_size = local_path.stat().st_size / 1024 / 1024
             logger.info(f"✓ Uploaded {blob_name} ({file_size:.2f} MB)")
@@ -81,7 +77,7 @@ class BlobStorageClient:
             local_path.parent.mkdir(parents=True, exist_ok=True)
 
             blob_client = self.container_client.get_blob_client(blob_name)
-            with open(local_path, 'wb') as download_file:
+            with open(local_path, "wb") as download_file:
                 download_file.write(blob_client.download_blob().readall())
 
             file_size = local_path.stat().st_size / 1024 / 1024
@@ -108,7 +104,7 @@ class BlobStorageClient:
             logger.error(f"Error checking if {blob_name} exists: {e}")
             return False
 
-    def list_blobs(self, prefix: str = "") -> List[str]:
+    def list_blobs(self, prefix: str = "") -> list[str]:
         """
         List blobs with optional prefix.
 
@@ -119,7 +115,9 @@ class BlobStorageClient:
             List of blob names
         """
         try:
-            blob_list = self.container_client.list_blobs(name_starts_with=prefix if prefix else None)
+            blob_list = self.container_client.list_blobs(
+                name_starts_with=prefix if prefix else None
+            )
             return [blob.name for blob in blob_list]
         except Exception as e:
             logger.error(f"Error listing blobs with prefix {prefix}: {e}")
@@ -146,10 +144,7 @@ class BlobStorageClient:
             return False
 
     def upload_directory(
-        self,
-        local_dir: Path,
-        blob_prefix: str = "",
-        file_patterns: Optional[List[str]] = None
+        self, local_dir: Path, blob_prefix: str = "", file_patterns: list[str] | None = None
     ) -> int:
         """
         Upload all files from a directory to blob storage.
@@ -169,7 +164,7 @@ class BlobStorageClient:
         logger.info(f"Uploading directory {local_dir} to blob prefix {blob_prefix}...")
 
         uploaded_count = 0
-        files_to_upload: List[Path] = []
+        files_to_upload: list[Path] = []
 
         # Collect files to upload
         if file_patterns:
@@ -187,11 +182,7 @@ class BlobStorageClient:
         logger.info(f"✓ Uploaded {uploaded_count} files from {local_dir}")
         return uploaded_count
 
-    def download_directory(
-        self,
-        blob_prefix: str,
-        local_dir: Path
-    ) -> int:
+    def download_directory(self, blob_prefix: str, local_dir: Path) -> int:
         """
         Download all blobs with a prefix to a local directory.
 
@@ -224,8 +215,7 @@ class BlobStorageClient:
 
 
 def get_blob_client(
-    connection_string: Optional[str] = None,
-    container_name: Optional[str] = None
+    connection_string: str | None = None, container_name: str | None = None
 ) -> BlobStorageClient:
     """
     Factory function to get a blob storage client.
@@ -239,9 +229,6 @@ def get_blob_client(
     """
     # Try to get from environment if not provided
     if connection_string is None:
-        connection_string = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+        connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 
-    return BlobStorageClient(
-        connection_string=connection_string,
-        container_name=container_name
-    )
+    return BlobStorageClient(connection_string=connection_string, container_name=container_name)
