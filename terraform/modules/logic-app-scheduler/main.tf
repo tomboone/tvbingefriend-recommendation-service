@@ -6,9 +6,6 @@ locals {
   schedule_parts = split(":", var.schedule_time)
   schedule_hour  = local.schedule_parts[0]
   schedule_minute = local.schedule_parts[1]
-
-  # Convert days of week list to JSON array string
-  schedule_days_of_week_json = jsonencode(var.schedule_days_of_week)
 }
 
 resource "azurerm_logic_app_workflow" "scheduler" {
@@ -54,7 +51,11 @@ resource "azurerm_logic_app_action_http" "start_container" {
   logic_app_id = azurerm_logic_app_workflow.scheduler.id
 
   method = "POST"
-  uri    = "https://management.azure.com${var.container_group_id}/start?api-version=2021-09-01"
+  uri    = "https://management.azure.com${var.container_group_id}/start"
+
+  queries = {
+    "api-version" = "2021-09-01"
+  }
 
   headers = {
     "Content-Type" = "application/json"
