@@ -46,20 +46,35 @@ resource "azurerm_logic_app_trigger_recurrence" "schedule" {
 
 # Deploy the action to start the container group
 # Note: Container will auto-execute pipeline on start, then stop due to OnFailure restart policy
-resource "azurerm_logic_app_action_http" "start_container" {
-  name         = "Start_Container_Group"
-  logic_app_id = azurerm_logic_app_workflow.scheduler.id
+# Using ARM template because azurerm_logic_app_action_http doesn't support managed identity auth
+resource "azurerm_resource_group_template_deployment" "start_container_action" {
+  name                = "logic-app-http-action"
+  resource_group_name = var.resource_group_name
+  deployment_mode     = "Incremental"
 
-  method = "POST"
-  uri    = "https://management.azure.com${var.container_group_id}/start"
-
-  queries = {
-    "api-version" = "2021-09-01"
-  }
-
-  headers = {
-    "Content-Type" = "application/json"
-  }
+  template_content = jsonencode({
+    "$schema" : "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion" : "1.0.0.0",
+    "resources" : [
+      {
+        "type" : "Microsoft.Logic/workflows/actions",
+        "apiVersion" : "2019-05-01",
+        "name" : "${azurerm_logic_app_workflow.scheduler.name}/Start_Container_Group",
+        "properties" : {
+          "type" : "Http",
+          "inputs" : {
+            "method" : "POST",
+            "uri" : "https://management.azure.com${var.container_group_id}/start?api-version=2021-09-01",
+            "authentication" : {
+              "type" : "ManagedServiceIdentity",
+              "audience" : "https://management.azure.com/"
+            }
+          },
+          "runAfter" : {}
+        }
+      }
+    ]
+  })
 
   depends_on = [
     azurerm_logic_app_trigger_recurrence.schedule,
